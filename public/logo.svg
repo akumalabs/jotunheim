@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="nordicGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#60a5fa;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Nordic-inspired shield with M rune -->
+  <rect x="10" y="10" width="108" height="108" rx="16" ry="16" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
+  
+  <!-- Stylized M rune (Midgard rune) -->
+  <path d="M 64 32 L 64 96 L 48 96 L 32 64 L 48 32 L 64 32" 
+        fill="url(#nordicGradient)" 
+        stroke="#60a5fa" 
+        stroke-width="3" 
+        stroke-linejoin="round"
+        stroke-linecap="round"/>
+  
+  <!-- Decorative nordic knot pattern (simplified) -->
+  <circle cx="88" cy="40" r="6" fill="#3b82f6" opacity="0.6"/>
+  <circle cx="40" cy="88" r="4" fill="#3b82f6" opacity="0.4"/>
+  
+  <!-- Nordic lines pattern -->
+  <line x1="20" y1="64" x2="32" y2="64" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="96" y1="64" x2="108" y2="64" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Yggdrasil-inspired vertical element (world tree) -->
+  <line x1="64" y1="15" x2="64" y2="32" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="56" y1="15" x2="56" y2="22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="72" y1="15" x2="72" y2="22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+</svg>

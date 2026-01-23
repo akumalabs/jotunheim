@@ -1,0 +1,312 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+/* Tailwind v4 @theme configuration */
+@theme {
+    /* Midgard "Laravel Dark" - Deep Slate & Blue */
+    --color-primary-50: oklch(0.97 0.02 260);
+    --color-primary-100: oklch(0.93 0.05 260);
+    --color-primary-200: oklch(0.88 0.08 260);
+    --color-primary-300: oklch(0.80 0.12 260);
+    --color-primary-400: oklch(0.70 0.16 260);
+    --color-primary-500: oklch(0.60 0.19 260);
+    --color-primary-600: oklch(0.50 0.18 260);
+    /* Laravel Red/Blue hybrid usually, sticking to Blue */
+    --color-primary-700: oklch(0.40 0.15 260);
+    --color-primary-800: oklch(0.30 0.12 260);
+    --color-primary-900: oklch(0.25 0.10 260);
+    --color-primary-950: oklch(0.15 0.06 260);
+
+    /* Slate / Dark Blue Grays */
+    --color-secondary-50: oklch(0.98 0.00 250);
+    --color-secondary-100: oklch(0.95 0.01 250);
+    --color-secondary-200: oklch(0.90 0.01 250);
+    --color-secondary-300: oklch(0.80 0.02 250);
+    --color-secondary-400: oklch(0.65 0.04 250);
+    --color-secondary-500: oklch(0.50 0.06 250);
+    --color-secondary-600: oklch(0.35 0.06 250);
+    --color-secondary-700: oklch(0.25 0.06 250);
+    --color-secondary-800: oklch(0.20 0.06 250);
+    /* Darker cards */
+    --color-secondary-900: oklch(0.15 0.06 250);
+    /* Dark background */
+    --color-secondary-950: oklch(0.10 0.06 250);
+    /* Deepest background */
+
+    --color-success-50: oklch(0.97 0.04 145);
+    --color-success-500: oklch(0.65 0.18 145);
+    --color-success-600: oklch(0.55 0.16 145);
+
+    --color-warning-50: oklch(0.98 0.04 85);
+    --color-warning-500: oklch(0.75 0.16 70);
+    --color-warning-600: oklch(0.68 0.16 55);
+
+    --color-danger-50: oklch(0.97 0.03 25);
+    --color-danger-500: oklch(0.63 0.22 25);
+    --color-danger-600: oklch(0.55 0.22 25);
+
+    /* Shadcn UI Variables (Mapped to Midgard Tokens) */
+    --color-background: var(--color-secondary-950);
+    --color-foreground: var(--color-secondary-50);
+
+    --color-card: var(--color-secondary-900);
+    --color-card-foreground: var(--color-secondary-50);
+
+    --color-popover: var(--color-secondary-900);
+    --color-popover-foreground: var(--color-secondary-50);
+
+    --color-primary: var(--color-primary-600);
+    --color-primary-foreground: var(--color-primary-50);
+
+    --color-secondary: var(--color-secondary-800);
+    --color-secondary-foreground: var(--color-secondary-50);
+
+    --color-muted: var(--color-secondary-800);
+    --color-muted-foreground: var(--color-secondary-400);
+
+    --color-accent: var(--color-secondary-800);
+    --color-accent-foreground: var(--color-secondary-50);
+
+    --color-destructive: var(--color-danger-600);
+    --color-destructive-foreground: var(--color-danger-50);
+
+    --color-border: var(--color-secondary-800);
+    --color-input: var(--color-secondary-800);
+    --color-ring: var(--color-primary-600);
+
+    --radius: 0.5rem;
+
+    /* Fonts */
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Animations */
+    --animate-fade-in: fade-in 0.3s ease-in-out;
+    --animate-slide-up: slide-up 0.3s ease-out;
+
+    @keyframes fade-in {
+        0% {
+            opacity: 0;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slide-up {
+        0% {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+@layer base {
+    html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        @apply bg-secondary-950 text-secondary-100 font-sans;
+    }
+
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-secondary-900;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-secondary-700 rounded-full;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-secondary-600;
+    }
+}
+
+@layer components {
+
+    /* Buttons - fully inlined utilities */
+    .btn-primary {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-950 disabled:opacity-50 disabled:cursor-not-allowed bg-primary-600 text-white hover:bg-primary-500 focus:ring-primary-500;
+        box-shadow: 0 4px 14px oklch(0.48 0.17 230 / 0.25);
+    }
+
+    .btn-primary:hover {
+        box-shadow: 0 6px 20px oklch(0.55 0.18 230 / 0.4);
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-950 disabled:opacity-50 disabled:cursor-not-allowed bg-secondary-800 text-secondary-100 hover:bg-secondary-700 focus:ring-secondary-500 border border-secondary-700;
+    }
+
+    .btn-danger {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-950 disabled:opacity-50 disabled:cursor-not-allowed bg-danger-600 text-white hover:bg-danger-500 focus:ring-danger-500;
+    }
+
+    .btn-danger-outline {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-950 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent text-danger-500 border border-danger-500 hover:bg-danger-500 hover:text-white focus:ring-danger-500;
+    }
+
+    .btn-success {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-950 disabled:opacity-50 disabled:cursor-not-allowed bg-success-600 text-white hover:bg-success-500 focus:ring-success-500;
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-secondary-950 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent text-secondary-300 hover:bg-secondary-800 hover:text-white;
+    }
+
+    /* Cards */
+    .card {
+        @apply bg-secondary-900/50 border border-secondary-800 rounded-xl;
+        backdrop-filter: blur(12px);
+    }
+
+    .card-header {
+        @apply px-6 py-4 border-b border-secondary-800;
+    }
+
+    .card-body {
+        @apply px-6 py-4;
+    }
+
+    /* Inputs */
+    .input {
+        @apply w-full px-4 py-2.5 bg-secondary-900 border border-secondary-700 rounded-lg text-secondary-100 placeholder-secondary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
+    }
+
+    .input-error {
+        @apply border-danger-500 focus:ring-danger-500;
+    }
+
+    .label {
+        @apply block text-sm font-medium text-secondary-300 mb-1.5;
+    }
+
+    /* Badges */
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-success {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-500/20 text-success-500;
+    }
+
+    .badge-warning {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning-500/20 text-warning-500;
+    }
+
+    .badge-danger {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-500/20 text-danger-500;
+    }
+
+    .badge-primary {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-500/20 text-primary-400;
+    }
+
+    .badge-secondary {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-700 text-secondary-300;
+    }
+
+    /* Status dots */
+    .status-dot-running {
+        @apply w-2 h-2 rounded-full bg-success-500 animate-pulse;
+    }
+
+    .status-dot-stopped {
+        @apply w-2 h-2 rounded-full bg-danger-500;
+    }
+
+    .status-dot-pending {
+        @apply w-2 h-2 rounded-full bg-warning-500 animate-pulse;
+    }
+
+    /* Tables */
+    .table {
+        @apply w-full text-left;
+    }
+
+    .table th {
+        @apply px-4 py-3 text-xs font-medium text-secondary-400 uppercase tracking-wider bg-secondary-900/50;
+    }
+
+    .table td {
+        @apply px-4 py-4 text-sm text-secondary-200 border-t border-secondary-800;
+    }
+
+    .table tbody tr {
+        @apply transition-colors duration-150;
+    }
+
+    .table tbody tr:hover {
+        @apply bg-secondary-800/50;
+    }
+
+    /* Navigation */
+    .nav-link {
+        @apply flex items-center gap-3 px-4 py-2.5 text-secondary-400 rounded-lg transition-all duration-200;
+    }
+
+    .nav-link:hover {
+        @apply text-white bg-secondary-800/50;
+    }
+
+    .nav-link-active {
+        @apply text-white bg-primary-600/20 border-l-2 border-primary-500;
+    }
+}
+
+@layer utilities {
+    .glass {
+        @apply bg-secondary-900/30 border border-secondary-800/50;
+        backdrop-filter: blur(20px);
+    }
+
+    /* Glows */
+    .glow-primary {
+        box-shadow: 0 0 20px oklch(0.55 0.18 230 / 0.3);
+    }
+
+    .glow-success {
+        box-shadow: 0 0 20px oklch(0.65 0.18 145 / 0.3);
+    }
+
+    .glow-danger {
+        box-shadow: 0 0 20px oklch(0.63 0.22 25 / 0.3);
+    }
+
+    /* Nordic geometric patterns */
+    .nordic-pattern {
+        background-image: radial-gradient(circle at 25% 25%, transparent 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, transparent 0%, transparent 50%);
+        background-size: 40px 40px;
+        background-position: 0 0, 20px 20px, 20px 0, 0 20px;
+    }
+
+    .gradient-bg {
+        background: linear-gradient(135deg, oklch(0.60 0.10 280 0.5 / 0.01) 0%, oklch(0.70 0.08 250 0.5 / 0.01) 100%);
+    }
+
+    .glass-card {
+        @apply bg-secondary-900/60 border border-secondary-800/50;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .gradient-text {
+        background: linear-gradient(to right, oklch(0.98 0.08 290 0.5 / 0.01), oklch(0.94 0.14 290 0.5 / 0.01));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+}
