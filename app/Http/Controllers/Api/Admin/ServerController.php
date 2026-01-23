@@ -784,13 +784,33 @@ class ServerController extends Controller
             'hostname' => ['nullable', 'string', 'max:255'],
         ]);
 
-        // Validate template is on the same node as the server
+        // Validate template exists and get its node
         $template = \App\Models\Template::where('vmid', $validated['template_vmid'])->first();
-        if ($template && $template->node_id !== $server->node_id) {
+        if (!$template) {
             return response()->json([
-                'message' => 'Template must be on the same node as the server',
+                'message' => 'Template not found',
                 'errors' => [
-                    'template_vmid' => ['Template is not available on this node'],
+                    'template_vmid' => ['Template does not exist'],
+                ],
+            ], 404);
+        }
+
+        // Note: Cross-node rebuilds are NOT supported by this validation
+        // Proxmox does not support cloning templates across different nodes directly
+        // Remove this validation if you want to attempt cross-node rebuilds (will fail at Proxmox level)
+        if ($template->node_id !== $server->node_id) {
+            $templateNode = \App\Models\Node::find($template->node_id);
+            $serverNode = \App\Models\Node::find($server->node_id);
+
+            return response()->json([
+                'message' => 'Template must be on same Proxmox node as server',
+                'errors' => [
+                    'template_vmid' => [
+                        "Template '{$template->name}' (VMID: {$template->vmid}) is on node '{$templateNode?->cluster}'",
+                        "Server is on node '{$serverNode?->cluster}'",
+                        'Proxmox does not support cloning across different nodes',
+                        'Please select a template from the same node',
+                    ],
                 ],
             ], 422);
         }
