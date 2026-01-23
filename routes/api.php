@@ -87,7 +87,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::delete('/servers/{server}/snapshots/{name}', [AdminServerController::class, 'deleteSnapshot']);
         Route::post('/servers/{server}/iso/mount', [AdminServerController::class, 'mountIso']);
         Route::post('/servers/{server}/iso/unmount', [AdminServerController::class, 'unmountIso']);
-        Route::post('/servers/{server}/rebuild', [AdminServerController::class, 'rebuild']);
+        Route::post('/servers/{server}/rebuild', [AdminServerController::class, 'rebuild'])
+            ->middleware('throttle.rebuild');
         Route::patch('/servers/{server}/resources', [AdminServerController::class, 'updateResources']);
         Route::get('/servers/{server}/rrd', [AdminServerController::class, 'rrdData']);
         Route::post('/servers/{server}/reset-password', [AdminServerController::class, 'resetPassword']);

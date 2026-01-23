@@ -42,8 +42,8 @@ class BackupController extends Controller
             ->with('node')
             ->firstOrFail();
 
-        // Check backup limit (optional)
-        $maxBackups = 5; // Could be configurable
+        // Check backup limit (configurable)
+        $maxBackups = config('settings.backup.max_backups', 5);
         if ($server->backups()->count() >= $maxBackups) {
             return response()->json([
                 'message' => "Maximum of {$maxBackups} backups allowed. Please delete an old backup first.",

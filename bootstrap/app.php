@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'role' => \App\Http\Middleware\CheckRole::class,
+            'throttle.rebuild' => \App\Http\Middleware\RateLimitRebuild::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
