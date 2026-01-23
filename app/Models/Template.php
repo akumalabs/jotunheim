@@ -65,12 +65,4 @@ class Template extends Model
             'template_group_id'
         );
     }
-
-    /**
-     * Get the node this template is on (through template group).
-     */
-    public function node(): BelongsTo
-    {
-        return $this->templateGroup->node();
-    }
 }
