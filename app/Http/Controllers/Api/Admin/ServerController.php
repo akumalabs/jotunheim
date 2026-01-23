@@ -767,6 +767,16 @@ class ServerController extends Controller
      */
     public function rebuild(Request $request, Server $server): JsonResponse
     {
+        // Check if server is already rebuilding
+        if ($server->status === 'rebuilding' || $server->is_installing) {
+            return response()->json([
+                'message' => 'Server is already being rebuilt or installed',
+                'errors' => [
+                    'server' => ['Cannot rebuild while server is in use'],
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'template_vmid' => ['required', 'exists:templates,vmid'],
             'password' => ['nullable', 'string', 'min:8'],
