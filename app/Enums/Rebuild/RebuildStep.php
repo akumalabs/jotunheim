@@ -11,6 +11,18 @@ enum RebuildStep: string
     case BOOTING_SERVER = 'booting_server';
     case FINALIZING = 'finalizing';
 
+    public function pveTaskType(): string
+    {
+        return match($this) {
+            self::STOPPING_SERVER => 'qmstop',
+            self::DELETING_SERVER => 'qmdestroy',
+            self::INSTALLING_OS => 'qmclone',
+            self::CONFIGURING_RESOURCES => 'qmconfig',
+            self::BOOTING_SERVER => 'qmstart',
+            self::FINALIZING => 'agent-ping',
+        };
+    }
+
     public function label(): string
     {
         return match($this) {
