@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Support\Str;
 
 class Template extends Model
@@ -43,11 +44,26 @@ class Template extends Model
     }
 
     /**
-     * Get the template group this template belongs to.
+     * Get template group this template belongs to.
      */
     public function templateGroup(): BelongsTo
     {
         return $this->belongsTo(TemplateGroup::class);
+    }
+
+    /**
+     * Get node this template is on (through template group).
+     * Note: This relationship requires eager loading: Template::with('templateGroup.node')
+     */
+    public function node(): HasOneThrough
+    {
+        return $this->hasOneThrough(
+            Node::class,
+            TemplateGroup::class,
+            'id',
+            'node_id',
+            'template_group_id'
+        );
     }
 
     /**

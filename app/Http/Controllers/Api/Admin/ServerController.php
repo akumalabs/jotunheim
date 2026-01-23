@@ -784,6 +784,86 @@ class ServerController extends Controller
             'hostname' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // Validate template exists and get its node via proper relationship chain
+        $template = \App\Models\Template::where('vmid', $validated['template_vmid'])
+            ->with('templateGroup.node')
+            ->first();
+
+        if (!$template) {
+            return response()->json([
+                'message' => 'Template not found',
+                'errors' => [
+                    'template_vmid' => ['Template does not exist'],
+                ],
+            ], 404);
+        }
+
+        // Get template node through the proper relationship
+        if (!$template->templateGroup) {
+            return response()->json([
+                'message' => 'Template is not assigned to a template group',
+                'errors' => [
+                    'template_vmid' => ['Template group not found for this template'],
+                    'debug' => [
+                        'template_id' => $template->id,
+                        'template_name' => $template->name,
+                        'template_vmid' => $template->vmid,
+                        'template_group_id' => $template->template_group_id,
+                    ],
+                ],
+            ], 422);
+        }
+
+        $templateNode = $template->templateGroup->node;
+        if (!$templateNode) {
+            return response()->json([
+                'message' => 'Template group is not assigned to a valid node',
+                'errors' => [
+                    'template_vmid' => ['Template node not found for this template group'],
+                    'debug' => [
+                        'template_group_id' => $template->templateGroup->id,
+                        'template_group_name' => $template->templateGroup->name,
+                        'template_node_id' => $template->templateGroup->node_id,
+                    ],
+                ],
+            ], 422);
+        }
+
+        // Load server node to ensure we have correct data
+        $server->load('node');
+
+        // Note: Cross-node rebuilds are NOT supported by this validation
+        // Proxmox does not support cloning templates across different nodes directly
+        // Compare node IDs, not names (more reliable)
+        if ($templateNode->id !== $server->node_id) {
+            return response()->json([
+                'message' => 'Template must be on same Proxmox node as server',
+                'errors' => [
+                    'template_vmid' => [
+                        "Template '{$template->name}' (VMID: {$template->vmid}) is on node '{$templateNode->name}'",
+                        "Server is on node '{$server->node->name}'",
+                        'Proxmox does not support cloning across different nodes',
+                        'Please select a template from same node',
+                    ],
+                    'debug' => [
+                        'template_node_id' => $templateNode->id,
+                        'server_node_id' => $server->node_id,
+                        'template_node_name' => $templateNode->name,
+                        'server_node_name' => $server->node->name,
+                        'template_vmid' => $template->vmid,
+                        'server_vmid' => $server->vmid,
+                    ],
+                ],
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'template_vmid' => ['required', 'exists:templates,vmid'],
+            'password' => ['nullable', 'string', 'min:8'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'hostname' => ['nullable', 'string', 'max:255'],
+        ]);
+
         // Validate template exists and get its node
         $template = \App\Models\Template::where('vmid', $validated['template_vmid'])
             ->with('templateGroup.node')
