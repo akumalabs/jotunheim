@@ -798,15 +798,26 @@ class ServerController extends Controller
             ], 404);
         }
 
+        // Get template node (through templateGroup relationship)
+        $templateNode = $template->templateGroup?->node;
+        if (!$templateNode) {
+            return response()->json([
+                'message' => 'Template is not assigned to a valid node',
+                'errors' => [
+                    'template_vmid' => ['Template group or node not found for this template'],
+                ],
+            ], 422);
+        }
+
         // Note: Cross-node rebuilds are NOT supported by this validation
         // Proxmox does not support cloning templates across different nodes directly
         // Remove this validation if you want to attempt cross-node rebuilds (will fail at Proxmox level)
-        if ($template->node->id !== $server->node_id) {
+        if ($templateNode->id !== $server->node_id) {
             return response()->json([
                 'message' => 'Template must be on same Proxmox node as server',
                 'errors' => [
                     'template_vmid' => [
-                        "Template '{$template->name}' (VMID: {$template->vmid}) is on node '{$template->node->name}'",
+                        "Template '{$template->name}' (VMID: {$template->vmid}) is on node '{$templateNode->name}'",
                         "Server is on node '{$server->node->name}'",
                         'Proxmox does not support cloning across different nodes',
                         'Please select a template from same node',
