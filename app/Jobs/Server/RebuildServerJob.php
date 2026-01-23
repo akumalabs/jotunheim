@@ -31,7 +31,7 @@ class RebuildServerJob implements ShouldQueue
     {
         Log::info("Job: RebuildServerJob handle() started for server {$this->server->id}");
         Log::info("Starting rebuild chain for server {$this->server->id}");
-        
+
         $this->server->update([
             'status' => 'rebuilding',
             'installation_task' => null // Clear stale task ID to prevent premature 100% progress
@@ -46,8 +46,8 @@ class RebuildServerJob implements ShouldQueue
             new \App\Jobs\Server\Rebuild\CloneVmStepJob($this->server, $this->templateVmid),
             new \App\Jobs\Server\WaitUntilVmIsCreatedJob($this->server),
             new \App\Jobs\Server\ConfigureVmJob(
-                $this->server, 
-                $this->password, 
+                $this->server,
+                $this->password,
                 $this->server->addresses->pluck('id')->toArray(),
                 // Assuming ssh keys are already attached or we pass empty for now if not handled in original rebuild
                 // Original rebuild didn't seem to explicitly handle SSH keys via params, just ignored?
@@ -57,8 +57,20 @@ class RebuildServerJob implements ShouldQueue
             ),
             new \App\Jobs\Server\Rebuild\BootVmStepJob($this->server),
             new \App\Jobs\Server\Rebuild\FinalizeVmStepJob($this->server),
+            // Add cleanup job to reset status on failure
+            new \App\Jobs\Server\Rebuild\HandleRebuildFailureJob($this->server, $this->server->status),
         ];
 
-        \Illuminate\Support\Facades\Bus::chain($chain)->dispatch();
+        \Illuminate\Support\Facades\Bus::chain($chain)
+            ->catch(function (\Throwable $e) {
+                Log::error("Rebuild chain failed for server {$this->server->id}: " . $e->getMessage());
+                $this->server->update([
+                    'status' => 'failed',
+                    'is_installing' => false,
+                    'installation_task' => null,
+                ]);
+                \Illuminate\Support\Facades\Cache::forget("server_rebuild_step_{$this->server->id}");
+            })
+            ->dispatch();
     }
 }

@@ -92,7 +92,7 @@ class ServerDeploymentService
         $step = DeploymentStep::create([
             'deployment_id' => $deployment->id,
             'sequence' => 1,
-            'status' => DeploymentStepStatus::PENDING,
+            'status' => 'pending',
             'message' => 'Initializing deployment',
         ]);
 
@@ -104,7 +104,7 @@ class ServerDeploymentService
             if (! $template) {
                 Log::info('No template specified, skipping creation');
                 $step->update([
-                    'status' => DeploymentStepStatus::COMPLETED,
+                    'status' => 'completed',
                     'message' => 'No template specified, cannot create from template',
                 ]);
 
@@ -122,7 +122,7 @@ class ServerDeploymentService
             $repo->cloneFromTemplate($template, $vmid, $vmName);
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => "VM cloned as {$vmName}",
             ]);
 
@@ -131,7 +131,7 @@ class ServerDeploymentService
             $step = DeploymentStep::create([
                 'deployment_id' => $deployment->id,
                 'sequence' => $step->sequence + 1,
-                'status' => DeploymentStepStatus::PENDING,
+                'status' => 'pending',
                 'message' => 'Configuring network',
             ]);
 
@@ -140,7 +140,7 @@ class ServerDeploymentService
             $this->configureNetwork($server);
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => 'Network configured',
             ]);
 
@@ -149,7 +149,7 @@ class ServerDeploymentService
             $step = DeploymentStep::create([
                 'deployment_id' => $deployment->id,
                 'sequence' => $step->sequence + 1,
-                'status' => DeploymentStepStatus::PENDING,
+                'status' => 'pending',
                 'message' => 'Configuring resources',
             ]);
 
@@ -158,7 +158,7 @@ class ServerDeploymentService
             $this->configureResources($server);
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => 'Resources configured',
             ]);
 
@@ -167,7 +167,7 @@ class ServerDeploymentService
             $step = DeploymentStep::create([
                 'deployment_id' => $deployment->id,
                 'sequence' => $step->sequence + 1,
-                'status' => DeploymentStepStatus::PENDING,
+                'status' => 'pending',
                 'message' => 'Regenerating cloud-init',
             ]);
 
@@ -176,7 +176,7 @@ class ServerDeploymentService
             $repo->regenerateCloudInit();
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => 'Cloud-init regenerated',
             ]);
 
@@ -185,7 +185,7 @@ class ServerDeploymentService
             $step = DeploymentStep::create([
                 'deployment_id' => $deployment->id,
                 'sequence' => $step->sequence + 1,
-                'status' => DeploymentStepStatus::PENDING,
+                'status' => 'pending',
                 'message' => 'Starting VM',
             ]);
 
@@ -194,7 +194,7 @@ class ServerDeploymentService
             $repo->start();
 
             $step->update([
-                'status' => DeploymentStepStatus::RUNNING,
+                'status' => 'running',
                 'message' => 'VM starting',
             ]);
 
@@ -211,7 +211,7 @@ class ServerDeploymentService
             Log::error("Create deployment failed for server {$server->uuid}: ".$e->getMessage());
 
             $step->update([
-                'status' => DeploymentStepStatus::FAILED,
+                'status' => 'failed',
                 'message' => "Failed: {$e->getMessage()}",
             ]);
 
@@ -229,7 +229,7 @@ class ServerDeploymentService
         $step = DeploymentStep::create([
             'deployment_id' => $deployment->id,
             'sequence' => 1,
-            'status' => DeploymentStepStatus::PENDING,
+            'status' => 'pending',
             'message' => 'Preparing for reinstall',
         ]);
 
@@ -250,7 +250,7 @@ class ServerDeploymentService
                 $repo->cloneFromTemplate($template, $vmid, $vmName);
 
                 $step->update([
-                    'status' => DeploymentStepStatus::COMPLETED,
+                    'status' => 'completed',
                     'message' => 'VM cloned from template',
                 ]);
 
@@ -259,7 +259,7 @@ class ServerDeploymentService
                 $this->configureNetwork($server);
 
                 $step->update([
-                    'status' => DeploymentStepStatus::COMPLETED,
+                    'status' => 'completed',
                     'message' => 'Network configured',
                 ]);
 
@@ -268,7 +268,7 @@ class ServerDeploymentService
                 $this->configureResources($server);
 
                 $step->update([
-                    'status' => DeploymentStepStatus::COMPLETED,
+                    'status' => 'completed',
                     'message' => 'Resources configured',
                 ]);
 
@@ -277,7 +277,7 @@ class ServerDeploymentService
                 $step = DeploymentStep::create([
                     'deployment_id' => $deployment->id,
                     'sequence' => $step->sequence + 1,
-                    'status' => DeploymentStepStatus::PENDING,
+                    'status' => 'pending',
                     'message' => 'Regenerating cloud-init',
                 ]);
 
@@ -286,7 +286,7 @@ class ServerDeploymentService
                 $repo->regenerateCloudInit();
 
                 $step->update([
-                    'status' => DeploymentStepStatus::COMPLETED,
+                    'status' => 'completed',
                     'message' => 'Cloud-init regenerated',
                 ]);
 
@@ -295,7 +295,7 @@ class ServerDeploymentService
                 $step = DeploymentStep::create([
                     'deployment_id' => $deployment->id,
                     'sequence' => $step->sequence + 1,
-                    'status' => DeploymentStepStatus::PENDING,
+                    'status' => 'pending',
                     'message' => 'Starting VM',
                 ]);
 
@@ -304,7 +304,7 @@ class ServerDeploymentService
                 $repo->start();
 
                 $step->update([
-                    'status' => DeploymentStepStatus::RUNNING,
+                    'status' => 'running',
                     'message' => 'VM starting',
                 ]);
 
@@ -322,7 +322,7 @@ class ServerDeploymentService
             Log::error("Reinstall deployment failed for server {$server->uuid}: ".$e->getMessage());
 
             $step->update([
-                'status' => DeploymentStepStatus::FAILED,
+                'status' => 'failed',
                 'message' => "Failed: {$e->getMessage()}",
             ]);
 
@@ -340,7 +340,7 @@ class ServerDeploymentService
         $step = DeploymentStep::create([
             'deployment_id' => $deployment->id,
             'sequence' => 1,
-            'status' => DeploymentStepStatus::PENDING,
+            'status' => 'pending',
             'message' => 'Stopping VM',
         ]);
 
@@ -352,7 +352,7 @@ class ServerDeploymentService
             $repo->stop();
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => 'VM stopped',
             ]);
 
@@ -361,7 +361,7 @@ class ServerDeploymentService
             $step = DeploymentStep::create([
                 'deployment_id' => $deployment->id,
                 'sequence' => $step->sequence + 1,
-                'status' => DeploymentStepStatus::PENDING,
+                'status' => 'pending',
                 'message' => 'Deleting VM',
             ]);
 
@@ -372,7 +372,7 @@ class ServerDeploymentService
             $repo->deleteVM($vmid);
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => 'VM deleted',
             ]);
 
@@ -381,7 +381,7 @@ class ServerDeploymentService
             $step = DeploymentStep::create([
                 'deployment_id' => $deployment->id,
                 'sequence' => $step->sequence + 1,
-                'status' => DeploymentStepStatus::PENDING,
+                'status' => 'pending',
                 'message' => 'Removing server record',
             ]);
 
@@ -390,7 +390,7 @@ class ServerDeploymentService
             $server->delete();
 
             $step->update([
-                'status' => DeploymentStepStatus::COMPLETED,
+                'status' => 'completed',
                 'message' => 'Server record removed',
             ]);
 
@@ -403,7 +403,7 @@ class ServerDeploymentService
             Log::error("Delete deployment failed for server {$server->uuid}: ".$e->getMessage());
 
             $step->update([
-                'status' => DeploymentStepStatus::FAILED,
+                'status' => 'failed',
                 'message' => "Failed: {$e->getMessage()}",
             ]);
 
@@ -421,16 +421,10 @@ class ServerDeploymentService
         $primaryAddress = $server->addresses()->where('is_primary', true)->first();
 
         if ($primaryAddress) {
-            $ipConfig = [
-                'ip' => $primaryAddress->address,
-                'cidr' => $primaryAddress->cidr,
-                'gw' => $primaryAddress->gateway ?? '',
-            ];
-
             $client = new ProxmoxApiClient($server->node);
 
             $client->put('/nodes/'.$server->node->cluster.'/qemu/'.$server->vmid.'/config', [
-                'ipconfig0' => sprintf('ip=%s/%s,gw=%s', $ipConfig['ip'], $ipConfig['gw'] ?? ''),
+                'ipconfig0' => sprintf('ip=%s,gw=%s', $primaryAddress->address, $primaryAddress->gateway ?? ''),
             ]);
         }
     }

@@ -52,16 +52,4 @@ enum RebuildStep: string
         return $this === self::INSTALLING_OS;
     }
 
-    public function pveTaskType(): string
-    {
-        return match($this) {
-            self::STOPPING_SERVER => 'qmstop',
-            self::DELETING_SERVER => 'qmdestroy',
-            self::INSTALLING_OS => 'qmclone',
-            self::CONFIGURING_RESOURCES => 'qmconfig',
-            self::BOOTING_SERVER => 'qmstart',
-            self::FINALIZING => 'agent-ping',
-        };
-    }
-
 }
