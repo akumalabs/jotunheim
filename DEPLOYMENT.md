@@ -43,9 +43,9 @@ sudo mv composer.phar /usr/local/bin/composer
 ### 2. Create Database
 
 ```bash
-sudo mysql -e "CREATE DATABASE midgard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "CREATE USER 'midgard'@'localhost' IDENTIFIED BY 'your_secure_password';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON midgard.* TO 'midgard'@'localhost';"
+sudo mysql -e "CREATE DATABASE jotunheim CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -e "CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_secure_password';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 ```
 
@@ -53,12 +53,12 @@ sudo mysql -e "FLUSH PRIVILEGES;"
 
 ```bash
 cd /var/www
-git clone https://github.com/yourorg/midgard.git
-cd midgard
+git clone https://github.com/akumalabs/jotunheim.git
+cd jotunheim
 
 # Set permissions
-sudo chown -R www-data:www-data /var/www/midgard
-sudo chmod -R 755 /var/www/midgard
+sudo chown -R www-data:www-data /var/www/jotunheim
+sudo chmod -R 755 /var/www/jotunheim
 sudo chmod -R 775 storage bootstrap/cache
 
 # Install dependencies
@@ -76,12 +76,12 @@ php artisan key:generate
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://midgard.yourdomain.com
+APP_URL=https://jotunheim.yourdomain.com
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
-DB_DATABASE=midgard
-DB_USERNAME=midgard
+DB_DATABASE=jotunheim
+DB_USERNAME=jotunheim
 DB_PASSWORD=your_secure_password
 
 CACHE_STORE=redis
@@ -106,13 +106,13 @@ php artisan storage:link
 
 ### 7. Configure Nginx
 
-Create `/etc/nginx/sites-available/midgard`:
+Create `/etc/nginx/sites-available/jotunheim`:
 
 ```nginx
 server {
     listen 80;
-    server_name midgard.yourdomain.com;
-    root /var/www/midgard/public;
+    server_name jotunheim.yourdomain.com;
+    root /var/www/jotunheim/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";
@@ -145,7 +145,7 @@ server {
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/midgard /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/jotunheim /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -154,17 +154,17 @@ sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d midgard.yourdomain.com
+sudo certbot --nginx -d jotunheim.yourdomain.com
 ```
 
 ### 9. Configure Queue Worker (Supervisor)
 
-Create `/etc/supervisor/conf.d/midgard-worker.conf`:
+Create `/etc/supervisor/conf.d/jotunheim-worker.conf`:
 
 ```ini
-[program:midgard-worker]
+[program:jotunheim-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/midgard/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+command=php /var/www/jotunheim/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -172,7 +172,7 @@ killasgroup=true
 user=www-data
 numprocs=2
 redirect_stderr=true
-stdout_logfile=/var/www/midgard/storage/logs/worker.log
+stdout_logfile=/var/www/jotunheim/storage/logs/worker.log
 stopwaitsecs=3600
 ```
 
@@ -181,13 +181,13 @@ Enable:
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start midgard-worker:*
+sudo supervisorctl start jotunheim-worker:*
 ```
 
 ## Updating
 
 ```bash
-cd /var/www/midgard
+cd /var/www/jotunheim
 
 # Pull updates
 git pull origin main
@@ -206,14 +206,14 @@ php artisan route:cache
 php artisan view:cache
 
 # Restart workers
-sudo supervisorctl restart midgard-worker:*
+sudo supervisorctl restart jotunheim-worker:*
 ```
 
 ## Default Credentials
 
 After installation:
-- Admin: `admin@midgard.local` / `password`
-- User: `user@midgard.local` / `password`
+- Admin: `admin@jotunheim.local` / `Password123!`
+- User: `user@jotunheim.local` / `Password123!`
 
 **Change these immediately after first login!**
 

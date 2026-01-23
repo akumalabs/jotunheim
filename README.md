@@ -1,10 +1,10 @@
-# Midgard Panel
+# Jotunheim Panel
 
-A modern, premium Proxmox VE control panel built with **Laravel 12** and **Vue 3**.  
-Midgard provides a simplified, Modern-premium interface for managing KVM virtual machines, featuring powerful automation, cloud-init integration, and a sleek user experience.
+A modern, premium Proxmox VE control panel built with **Laravel 12** and **Vue 3**.
+Jotunheim provides a simplified, Modern-premium interface for managing KVM virtual machines, featuring powerful automation, cloud-init integration, and a sleek user experience.
 
-**Repository**: https://github.com/akumalabs/midgard-panel  
-**Live Demo**: https://midgard.akumalabs.com
+**Repository**: https://github.com/akumalabs/jotunheim
+**Live Demo**: https://jotunheim.akumalabs.com
 
 ## Key Features
 
@@ -68,7 +68,7 @@ Midgard provides a simplified, Modern-premium interface for managing KVM virtual
 
 ### One-Line Install (Ubuntu/Debian)
 ```bash
-curl -sSL https://raw.githubusercontent.com/akumalabs/midgard-panel/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/akumalabs/jotunheim/main/install.sh | sudo bash
 ```
 
 ### Manual Install
@@ -77,8 +77,8 @@ curl -sSL https://raw.githubusercontent.com/akumalabs/midgard-panel/main/install
 
 #### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/akumalabs/midgard-panel.git
-cd midgard-panel
+git clone https://github.com/akumalabs/jotunheim.git
+cd jotunheim
 composer install
 npm install
 ```
@@ -93,7 +93,7 @@ Edit `.env` to configure Database, Redis, and App URL.
 #### 3. Setup Database & User
 ```bash
 php artisan migrate --seed
-# Creates admin@midgard.local / password
+# Creates admin@jotunheim.local / Password123!
 ```
 
 #### 4. Build Frontend & Run

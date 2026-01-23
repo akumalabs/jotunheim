@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         // Create admin user with default password
         $admin = User::create([
             'name' => 'Admin',
-            'email' => 'admin@midgard.local',
+            'email' => 'admin@jotunheim.local',
             'password' => Hash::make('Password123!'),
             'is_admin' => true,
             'email_verified_at' => now(),
@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         // Create demo user with default password
         $user = User::create([
             'name' => 'Demo User',
-            'email' => 'user@midgard.local',
+            'email' => 'user@jotunheim.local',
             'password' => Hash::make('Password123!'),
             'is_admin' => false,
             'email_verified_at' => now(),
@@ -61,9 +61,9 @@ class DatabaseSeeder extends Seeder
         */
 
         $this->command->info('Database seeded successfully!');
-        $this->command->info('Admin login: admin@midgard.local');
+        $this->command->info('Admin login: admin@jotunheim.local');
         $this->command->info('Admin password: Password123!');
-        $this->command->info('User login: user@midgard.local');
+        $this->command->info('User login: user@jotunheim.local');
         $this->command->info('User password: Password123!');
         $this->command->warn('IMPORTANT: Change these passwords immediately after first login!');
     }

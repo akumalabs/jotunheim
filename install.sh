@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Midgard Control Panel Auto Installer
+# Jotunheim Control Panel Auto Installer
 # Usage: curl -sSL https://raw.githubusercontent.com/akumalabs/jotunheim/main/install.sh | sudo bash
 
 set -e
@@ -31,6 +31,13 @@ echo " | |  | | | (_| | (_| | (_| | | | (_| |"
 echo " |_|  |_|_|\__,_|\__, |\__,_|_|  \__,_|"
 echo "                  __/ |                "
 echo "                 |___/   Control Panel"
+echo "              _      _              _ "
+echo "             / \  __| | _   _  __ _| |"
+echo "            / _ \/ _\` || | | |/ _\` | |"
+echo "           / ___ \ (_| || |_| | (_| | |"
+echo "          /_/   \_\__,_| \__, |\__,_|_|"
+echo "                         __/ |        "
+echo "                        |___/         "
 echo -e "${NC}"
 echo ""
 
@@ -62,7 +69,7 @@ echo -e "${GREEN}➜${NC} Starting installation..."
 echo ""
 
 # Update system
-echo -e "${BLUE}[1/8]${NC} Updating system packages..."
+echo -e "${BLUE}[1/9]${NC} Updating system packages..."
 apt update -qq
 apt upgrade -y -qq
 
@@ -75,7 +82,7 @@ if dpkg -l | grep -q apache2; then
 fi
 
 # Install dependencies
-echo -e "${BLUE}[2/8]${NC} Installing PHP 8.2 and extensions..."
+echo -e "${BLUE}[2/9]${NC} Installing PHP 8.2 and extensions..."
 apt install -y -qq --no-install-recommends software-properties-common curl gnupg2
 
 # Add PHP repository if needed
@@ -94,7 +101,7 @@ apt install -y -qq --no-install-recommends php8.2-fpm php8.2-cli php8.2-mysql ph
     php8.2-gd php8.2-intl
 
 # Install other services
-echo -e "${BLUE}[3/8]${NC} Installing database, Redis, Nginx, and Supervisor..."
+echo -e "${BLUE}[3/9]${NC} Installing database, Redis, Nginx, and Supervisor..."
 
 # Debian uses MariaDB, Ubuntu uses MySQL
 if [ "$OS" = "debian" ]; then
@@ -115,7 +122,7 @@ if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt
 fi
 
 # Configure MySQL
-echo -e "${BLUE}[4/8]${NC} Configuring database..."
+echo -e "${BLUE}[4/9]${NC} Configuring database..."
 mysql -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 # Reset user to ensure clean state
 mysql -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';"
@@ -132,7 +139,7 @@ mysql -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'127.0.0.1';"
 mysql -e "FLUSH PRIVILEGES;"
 
 # Clone repository
-echo -e "${BLUE}[5/8]${NC} Downloading Midgard..."
+echo -e "${BLUE}[5/9]${NC} Downloading Jotunheim..."
 if [ -d "$INSTALL_DIR" ]; then
     rm -rf "$INSTALL_DIR"
 fi
@@ -144,7 +151,7 @@ cd "$INSTALL_DIR"
 trap 'echo -e "${RED}Installation failed at step: $BASH_COMMAND${NC}"; exit 1' ERR
 
 # Install PHP dependencies
-echo -e "${BLUE}[6/8]${NC} Installing dependencies..."
+echo -e "${BLUE}[6/9]${NC} Installing dependencies..."
 composer install --no-dev --optimize-autoloader --no-interaction --quiet
 
 # Install Node dependencies and build
@@ -180,7 +187,7 @@ else
 fi
 
 # Configure Laravel
-echo -e "${BLUE}[7/8]${NC} Configuring application..."
+echo -e "${BLUE}[7/9]${NC} Configuring application..."
 cp .env.example .env
 
 # Update .env BEFORE generating key
@@ -215,7 +222,7 @@ php artisan view:cache --quiet
 php artisan storage:link --quiet 2>/dev/null || true
 
 # Configure Nginx
-echo -e "${BLUE}[8/8]${NC} Configuring web server..."
+echo -e "${BLUE}[8/9]${NC} Configuring web server..."
 
 cat > /etc/nginx/sites-available/midgard << 'NGINX'
 server {
@@ -300,10 +307,33 @@ fi
 
 # Enable services (mariadb on Debian, mysql on Ubuntu)
 if [ "$OS" = "debian" ]; then
-    systemctl enable php8.2-fpm nginx redis-server mariadb
+    systemctl enable php8.2-fpm nginx redis-server mariadb supervisor
 else
-    systemctl enable php8.2-fpm nginx redis-server mysql
+    systemctl enable php8.2-fpm nginx redis-server mysql supervisor
 fi
+
+# Configure Supervisor for Queue Worker
+echo -e "${BLUE}[9/9]${NC} Configuring queue worker..."
+
+cat > /etc/supervisor/conf.d/midgard-worker.conf << 'SUPERVISOR'
+[program:midgard-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/midgard/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/www/midgard/storage/logs/worker.log
+stopwaitsecs=3600
+SUPERVISOR
+
+# Reread, update, and start supervisor
+supervisorctl reread
+supervisorctl update
+supervisorctl start midgard-worker:*
 
 # SSL Setup
 if [ "$SERVER_NAME" != "_" ]; then
@@ -353,10 +383,10 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║          Installation Complete!                           ║${NC}"
 echo -e "${GREEN}╠═══════════════════════════════════════════════════════════╣${NC}"
 echo -e "${GREEN}║${NC}  URL        │  ${APP_URL}                          ${GREEN}║${NC}"
-echo -e "${GREEN}║${NC}  Username   │  admin@midgard.local                         ${GREEN}║${NC}"
-echo -e "${GREEN}║${NC}  Password   │  password                                    ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}  Username   │  admin@jotunheim.local                       ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}  Password   │  Password123!                                ${GREEN}║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${YELLOW}⚠  Change the admin password immediately after login!${NC}"
-echo -e 
-echo -e "Documentation: ${BLUE}https://github.com/akumalabs/Midgard${NC}"
+echo ""
+echo -e "Documentation: ${BLUE}https://github.com/akumalabs/jotunheim${NC}"
