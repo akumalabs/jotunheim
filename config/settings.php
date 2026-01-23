@@ -36,24 +36,4 @@ return [
         'min_password_length' => env('SERVER_MIN_PASSWORD_LENGTH', 8),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Rate Limiting
-    |--------------------------------------------------------------------------
-    |
-    | Configure rate limits for API endpoints
-    |
-    */
-
-    'rate_limit' => [
-        // Maximum rebuild attempts per hour per server
-        'rebuild_per_hour' => env('RATE_LIMIT_REBUILD_PER_HOUR', 3),
-
-        // Maximum power control attempts per minute per server
-        'power_per_minute' => env('RATE_LIMIT_POWER_PER_MINUTE', 6),
-
-        // Maximum backup creation attempts per hour per server
-        'backup_per_hour' => env('RATE_LIMIT_BACKUP_PER_HOUR', 2),
-    ],
-
 ];
