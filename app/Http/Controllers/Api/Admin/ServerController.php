@@ -805,6 +805,12 @@ class ServerController extends Controller
                 'message' => 'Template is not assigned to a valid node',
                 'errors' => [
                     'template_vmid' => ['Template group or node not found for this template'],
+                    'debug' => [
+                        'template_id' => $template->id,
+                        'template_name' => $template->name,
+                        'template_group_id' => $template->template_group_id,
+                        'template_group_exists' => !is_null($template->templateGroup),
+                    ],
                 ],
             ], 422);
         }
@@ -821,6 +827,12 @@ class ServerController extends Controller
                         "Server is on node '{$server->node->name}'",
                         'Proxmox does not support cloning across different nodes',
                         'Please select a template from same node',
+                    ],
+                    'debug' => [
+                        'template_node_id' => $templateNode->id,
+                        'server_node_id' => $server->node_id,
+                        'template_node_name' => $templateNode->name,
+                        'server_node_name' => $server->node->name,
                     ],
                 ],
             ], 422);
