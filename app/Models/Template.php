@@ -58,11 +58,12 @@ class Template extends Model
     public function node(): HasOneThrough
     {
         return $this->hasOneThrough(
-            Node::class,
-            TemplateGroup::class,
-            'id',
-            'node_id',
-            'template_group_id'
+            Node::class,           // Remote model (what we want)
+            TemplateGroup::class,  // Intermediate model (through)
+            'id',                    // First key on remote (nodes.id)
+            'node_id',               // First key on intermediate (template_groups.node_id)
+            'template_group_id',     // Second key on intermediate (template_groups.id)
+            'id'                     // Second local key (defaults to templates.id)
         );
     }
 }
