@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Midgard Control Panel Auto Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/akumalabs/midgard-panel/main/install.sh | sudo bash
+# Usage: curl -sSL https://raw.githubusercontent.com/akumalabs/jotunheim/main/install.sh | sudo bash
 
 set -e
 
@@ -136,7 +136,7 @@ echo -e "${BLUE}[5/8]${NC} Downloading Midgard..."
 if [ -d "$INSTALL_DIR" ]; then
     rm -rf "$INSTALL_DIR"
 fi
-git clone -q https://github.com/akumalabs/midgard-panel.git "$INSTALL_DIR"
+git clone -q https://github.com/akumalabs/jotunheim.git "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
 # Install PHP dependencies
