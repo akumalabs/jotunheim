@@ -37,6 +37,9 @@ class RebuildServerJob implements ShouldQueue
             'installation_task' => null // Clear stale task ID to prevent premature 100% progress
         ]);
 
+        // Get user's SSH keys for configuration
+        $sshKeyIds = $this->server->user->sshKeys()->pluck('id')->toArray();
+
         $chain = [
             // Use standard SendPowerCommandJob with middleware protection
             new \App\Jobs\Server\SendPowerCommandJob($this->server, \App\Enums\Server\PowerCommand::STOP),
@@ -49,11 +52,7 @@ class RebuildServerJob implements ShouldQueue
                 $this->server,
                 $this->password,
                 $this->server->addresses->pluck('id')->toArray(),
-                // Assuming ssh keys are already attached or we pass empty for now if not handled in original rebuild
-                // Original rebuild didn't seem to explicitly handle SSH keys via params, just ignored?
-                // Let's pass empty array for keys if original job didn't handle them, or check logic.
-                // Original RebuildServerJob didn't reference SSH keys.
-                []
+                $sshKeyIds
             ),
             new \App\Jobs\Server\Rebuild\BootVmStepJob($this->server),
             new \App\Jobs\Server\Rebuild\FinalizeVmStepJob($this->server),

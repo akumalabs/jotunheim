@@ -774,6 +774,17 @@ class ServerController extends Controller
             'hostname' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // Validate template is on the same node as the server
+        $template = \App\Models\Template::where('vmid', $validated['template_vmid'])->first();
+        if ($template && $template->node_id !== $server->node_id) {
+            return response()->json([
+                'message' => 'Template must be on the same node as the server',
+                'errors' => [
+                    'template_vmid' => ['Template is not available on this node'],
+                ],
+            ], 422);
+        }
+
         // Update server details if provided
         $updateData = [];
         if (!empty($validated['name'])) {
@@ -782,7 +793,7 @@ class ServerController extends Controller
         if (!empty($validated['hostname'])) {
             $updateData['hostname'] = $validated['hostname'];
         }
-        
+
         if (!empty($updateData)) {
             $server->update($updateData);
         }
