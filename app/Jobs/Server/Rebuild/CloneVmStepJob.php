@@ -36,14 +36,17 @@ class CloneVmStepJob implements ShouldQueue
         try {
             $vmName = $this->server->hostname ?? Str::slug($this->server->name);
 
-            $upid = $client->cloneVM($this->templateVmid, $this->server->vmid, [
+            $response = $client->cloneVM($this->templateVmid, $this->server->vmid, [
                 'name' => $vmName,
                 'full' => 1,
             ]);
 
-            if (is_string($upid)) {
-                $this->server->update(['installation_task' => $upid]);
-                Log::info("[Rebuild] Server {$this->server->id}: Clone started with UPID {$upid}");
+            Log::info("[Rebuild] Server {$this->server->id}: Proxmox API response: " . json_encode($response));
+            Log::info("[Rebuild] Server {$this->server->id}: Response UPID: " . ($response['data'] ?? 'N/A'));
+
+            if (is_string($response)) {
+                $this->server->update(['installation_task' => $response['data']]);
+                Log::info("[Rebuild] Server {$this->server->id}: Clone started with UPID {$response['data']}");
             }
         } catch (\Exception $e) {
             Log::error("[Rebuild] Server {$this->server->id}: Clone failed - " . $e->getMessage());
