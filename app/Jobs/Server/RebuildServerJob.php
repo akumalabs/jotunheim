@@ -4,6 +4,17 @@ namespace App\Jobs\Server;
 
 use App\Models\Server;
 use App\Services\Proxmox\ProxmoxApiClient;
+use App\Jobs\SendPowerCommandJob;
+use App\Jobs\Rebuild\WaitUntilVmIsStoppedStepJob;
+use App\Jobs\Server\Rebuild\DeleteVmStepJob;
+use App\Jobs\Server\Rebuild\WaitUntilVmIsDeletedStepJob;
+use App\Jobs\Server\Rebuild\CloneVmStepJob;
+use App\Jobs\Server\WaitUntilVmIsCreatedJob;
+use App\Jobs\Server\Rebuild\ConfigureVmJob;
+use App\Jobs\Server\Rebuild\BootVmStepJob;
+use App\Jobs\Server\Rebuild\FinalizeVmStepJob;
+use App\Jobs\Server\Rebuild\HandleRebuildFailureJob;
+use App\Enums\Server\PowerCommand;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -34,7 +45,7 @@ class RebuildServerJob implements ShouldQueue
 
         $this->server->update([
             'status' => 'rebuilding',
-            'installation_task' => null // Clear stale task ID to prevent premature 100% progress
+            'installation_task' => null, // Clear stale task ID to prevent premature 100% progress
         ]);
 
         // Get user's SSH keys for configuration
@@ -42,20 +53,22 @@ class RebuildServerJob implements ShouldQueue
 
         $chain = [
             // Use standard SendPowerCommandJob with middleware protection
-            new \App\Jobs\Server\SendPowerCommandJob($this->server, \App\Enums\Server\PowerCommand::STOP),
-            new \App\Jobs\Server\Rebuild\WaitUntilVmIsStoppedStepJob($this->server),
-            new \App\Jobs\Server\Rebuild\DeleteVmStepJob($this->server),
-            new \App\Jobs\Server\Rebuild\WaitUntilVmIsDeletedStepJob($this->server),
-            new \App\Jobs\Server\Rebuild\CloneVmStepJob($this->server, $this->templateVmid),
-            new \App\Jobs\Server\WaitUntilVmIsCreatedJob($this->server),
-            new \App\Jobs\Server\ConfigureVmJob(
+            new SendPowerCommandJob($this->server, \App\Enums\Server\PowerCommand::STOP),
+            new Rebuild\WaitUntilVmIsStoppedStepJob($this->server),
+            new Rebuild\DeleteVmStepJob($this->server),
+            new Rebuild\WaitUntilVmIsDeletedStepJob($this->server),
+            new Rebuild\CloneVmStepJob($this->server, $this->templateVmid),
+            new Rebuild\WaitUntilVmIsCreatedJob($this->server),
+            new Rebuild\ConfigureVmJob(
                 $this->server,
                 $this->password,
                 $this->server->addresses->pluck('id')->toArray(),
                 $sshKeyIds
             ),
-            new \App\Jobs\Server\Rebuild\BootVmStepJob($this->server),
+            new Rebuild\BootVmStepJob($this->server),
             new \App\Jobs\Server\Rebuild\FinalizeVmStepJob($this->server),
+            // Add cleanup job to reset status on failure
+            new \App\Jobs\Server\Rebuild\HandleRebuildFailureJob($this->server, $this->server->status),
         ];
 
         \Illuminate\Support\Facades\Bus::chain($chain)
