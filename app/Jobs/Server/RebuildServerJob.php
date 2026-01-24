@@ -56,8 +56,6 @@ class RebuildServerJob implements ShouldQueue
             ),
             new \App\Jobs\Server\Rebuild\BootVmStepJob($this->server),
             new \App\Jobs\Server\Rebuild\FinalizeVmStepJob($this->server),
-            // Add cleanup job to reset status on failure
-            new \App\Jobs\Server\Rebuild\HandleRebuildFailureJob($this->server, $this->server->status),
         ];
 
         \Illuminate\Support\Facades\Bus::chain($chain)

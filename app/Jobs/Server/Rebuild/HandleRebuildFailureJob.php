@@ -25,7 +25,10 @@ class HandleRebuildFailureJob implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("Rebuild completed successfully for server {$this->server->id}");
+        // This is a no-op job - it should never run in the normal success path
+        // The actual completion is handled by FinalizeVmStepJob
+        // IMPORTANT: This job only runs when the chain catches an exception
+        // Normal rebuild completion is handled by FinalizeVmStepJob, not this job
     }
 
     public function failed(\Throwable $exception): void
@@ -33,7 +36,7 @@ class HandleRebuildFailureJob implements ShouldQueue
         Log::error("Rebuild failed for server {$this->server->id}: {$exception->getMessage()}");
 
         $this->server->update([
-            'status' => 'failed',
+            'status' => $this->previousStatus === 'running' ? 'running' : 'failed',
             'is_installing' => false,
             'installation_task' => null,
         ]);
