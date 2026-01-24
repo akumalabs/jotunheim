@@ -4,8 +4,8 @@ namespace App\Jobs\Server;
 
 use App\Models\Server;
 use App\Services\Proxmox\ProxmoxApiClient;
-use App\Jobs\SendPowerCommandJob;
-use App\Jobs\Rebuild\WaitUntilVmIsStoppedStepJob;
+use App\Jobs\Server\SendPowerCommandJob;
+use App\Jobs\Server\Rebuild\WaitUntilVmIsStoppedStepJob;
 use App\Jobs\Server\Rebuild\DeleteVmStepJob;
 use App\Jobs\Server\Rebuild\WaitUntilVmIsDeletedStepJob;
 use App\Jobs\Server\Rebuild\CloneVmStepJob;
@@ -20,7 +20,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class RebuildServerJob implements ShouldQueue
 {
