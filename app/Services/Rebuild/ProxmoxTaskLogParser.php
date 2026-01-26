@@ -28,6 +28,19 @@ class ProxmoxTaskLogParser
                     'total_formatted' => $this->formatBytes($total),
                 ];
             }
+
+            // Fallback for: "transferring disk data... 35%"
+            if (preg_match('/transferring\s+disk\s+data\.{3}\s+(\d+)%/i', $lineData, $matches)) {
+                 Log::debug("ProxmoxTaskLogParser simple matched: " . json_encode($matches));
+                 $percentage = (float) $matches[1];
+                 return [
+                    'current_bytes' => 0,
+                    'total_bytes' => 0,
+                    'progress_percent' => $percentage,
+                    'current_formatted' => $percentage . '%',
+                    'total_formatted' => '100%',
+                ];
+            }
         }
         
         return null;

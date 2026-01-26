@@ -43,6 +43,13 @@ class ConfigureVmJob implements ShouldQueue
         
         try {
             $client = new ProxmoxApiClient($this->server->node);
+            
+            // Wait for VM to unlock (Clone might still be holding lock)
+            $serverRepo = (new \App\Repositories\Proxmox\Server\ProxmoxServerRepository($client))->setServer($this->server);
+            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                 throw new \Exception("VM locked timeout before configuration start.");
+            }
+
             $cloudInitRepo = (new \App\Repositories\Proxmox\Server\ProxmoxCloudinitRepository($client))
                 ->setServer($this->server);
             $configRepo = (new \App\Repositories\Proxmox\Server\ProxmoxConfigRepository($client))
