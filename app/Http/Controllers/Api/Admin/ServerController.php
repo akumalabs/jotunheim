@@ -499,13 +499,11 @@ class ServerController extends Controller
                     }
                 } else {
                     $log = $client->getTaskLog($server->installation_task);
-                    $cloneProgress = 0;
-                    foreach (array_reverse($log) as $line) {
-                        if (preg_match('/(?:^|\s|\()(\d+(?:\.\d+)?)%\)?/', $line['t'], $matches)) {
-                            $cloneProgress = (float) $matches[1];
-                            break;
-                        }
-                    }
+                    $parser = new \App\Services\Rebuild\ProxmoxTaskLogParser();
+                    $progressData = $parser->parseCloneProgress($log);
+                    
+                    $cloneProgress = $progressData['progress_percent'] ?? 0;
+
                     $response['progress'] = 20 + ($cloneProgress * 0.55);
                     $response['cloneProgress'] = $cloneProgress;
                 }
