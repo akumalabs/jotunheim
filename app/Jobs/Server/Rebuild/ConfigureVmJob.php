@@ -61,6 +61,12 @@ class ConfigureVmJob implements ShouldQueue
             if ($this->server->disk > 0) {
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
                  $configRepo->resizeDisk('scsi0', $this->server->disk);
+                 
+                 // Wait for Unlock after Resize (Fix Race Condition)
+                 $serverRepo = (new \App\Repositories\Proxmox\Server\ProxmoxServerRepository($client))->setServer($this->server);
+                 if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                      throw new \Exception("VM locked timeout after resize.");
+                 }
             }
 
             // 1. Configure User/Password
