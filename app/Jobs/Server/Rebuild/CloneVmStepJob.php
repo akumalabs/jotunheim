@@ -34,7 +34,7 @@ class CloneVmStepJob implements ShouldQueue
         Log::info("[Rebuild] Server {$this->server->id}: Cloning template {$this->templateVmid} to VMID {$this->server->vmid}");
 
         try {
-            $vmName = $this->server->hostname ?? Str::slug($this->server->name);
+            $vmName = $this->server->name;
 
             $response = $client->cloneVM($this->templateVmid, $this->server->vmid, [
                 'name' => $vmName,
