@@ -449,6 +449,16 @@ class ServerController extends Controller
             if ($cachedStep) {
                 Cache::forget("server_rebuild_step_{$server->id}");
             }
+            
+            if ($server->status === 'failed') {
+                 return response()->json([
+                    'progress' => 0,
+                    'status' => 'failed',
+                    'step' => 'failed',
+                    'error' => 'Rebuild failed. Check logs for details.',
+                ]);
+            }
+
             return response()->json([
                 'progress' => 100,
                 'status' => 'completed',

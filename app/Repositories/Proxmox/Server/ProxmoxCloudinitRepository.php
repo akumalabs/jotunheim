@@ -142,8 +142,12 @@ class ProxmoxCloudinitRepository extends ProxmoxRepository
         if (isset($config['ssh_keys'])) {
             $params['sshkeys'] = urlencode(implode("\n", $config['ssh_keys']));
         }
-        if (isset($config['ip']) && isset($config['gateway'])) {
-            $params['ipconfig0'] = "ip={$config['ip']},gw={$config['gateway']}";
+        if (isset($config['ip'])) {
+            $ipConfig = "ip={$config['ip']}";
+            if (isset($config['gateway']) && !empty($config['gateway'])) {
+                $ipConfig .= ",gw={$config['gateway']}";
+            }
+            $params['ipconfig0'] = $ipConfig;
         }
         if (isset($config['nameservers'])) {
             $params['nameserver'] = implode(' ', $config['nameservers']);
