@@ -14,7 +14,7 @@ class ProxmoxTaskLogParser
         foreach ($logs as $line) {
             $lineData = $line['t'] ?? '';
             
-            if (preg_match('/transferred\s+([\d.]+)\s+([A-Za-z]+)\s+of\s+([\d.]+)\s+([A-Za-z]+)/i', $lineData, $matches)) {
+            if (preg_match('/transferred\s+([\d.]+)\s+([A-Za-z]+)\s+of\s+([\d.]+)\s+([A-Za-z]+)(?:\s*\(([\d.]+)%\))?/i', $lineData, $matches)) {
                 $current = $this->convertToBytes($matches[1], $matches[2]);
                 $total = $this->transferToBytes($matches[3], $matches[4]);
                 $percentage = min(($current / $total) * 100, 99.9);

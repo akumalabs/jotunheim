@@ -75,8 +75,11 @@ class ProxmoxCloudinitRepository extends ProxmoxRepository
      */
     public function setIpConfig(string $ip, string $gw, int $ifnum = 0): array|string
     {
-        $value = "ip={$ip},gw={$gw}";
-
+        $value = "ip={$ip}";
+        if (!empty($gw)) {
+            $value .= ",gw={$gw}";
+        }
+        
         return $this->client->post(
             "/nodes/{$this->node->cluster}/qemu/{$this->server->vmid}/config",
             ["ipconfig{$ifnum}" => $value]
