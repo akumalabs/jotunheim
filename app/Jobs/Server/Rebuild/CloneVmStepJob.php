@@ -44,9 +44,19 @@ class CloneVmStepJob implements ShouldQueue
             Log::info("[Rebuild] Server {$this->server->id}: Proxmox API response: " . json_encode($response));
             Log::info("[Rebuild] Server {$this->server->id}: Response UPID: " . ($response['data'] ?? 'N/A'));
 
-            if (is_string($response)) {
-                $this->server->update(['installation_task' => $response['data']]);
-                Log::info("[Rebuild] Server {$this->server->id}: Clone started with UPID {$response['data']}");
+            if (isset($response['data'])) {
+                $upid = $response['data'];
+                $this->server->update(['installation_task' => $upid]);
+                Log::info("[Rebuild] Server {$this->server->id}: Clone started with UPID {$upid}");
+            } elseif (is_string($response)) {
+                $this->server->update(['installation_task' => $response]);
+                Log::info("[Rebuild] Server {$this->server->id}: Clone started with UPID {$response}");
+            } else {
+                Log::warning("[Rebuild] Server {$this->server->id}: Unexpected response format from cloneVM: " . json_encode($response));
+                // Fallback: try to find the upid in response if it's the raw array
+                if (isset($response['data'])) {
+                     $this->server->update(['installation_task' => $response['data']]);
+                }
             }
         } catch (\Exception $e) {
             Log::error("[Rebuild] Server {$this->server->id}: Clone failed - " . $e->getMessage());

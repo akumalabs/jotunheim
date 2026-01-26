@@ -34,18 +34,12 @@ class WaitUntilVmIsCreatedJob implements ShouldQueue
         Log::info("[Rebuild] Server {$this->server->id}: Monitoring VM {$this->server->vmid} creation progress");
         
         try {
-            $taskId = Cache::get("server_rebuild_taskid_{$this->server->id}");
+            // Refresh server to get the latest installation_task set by CloneVmStepJob
+            $this->server->refresh();
+            $taskId = $this->server->installation_task;
             
             if (!$taskId) {
-                Log::warning("[Rebuild] Server {$this->server->id}: No task ID found, checking VM status");
-                
-                $vmExists = $client->vmidExists($this->server->vmid);
-                
-                if ($vmExists) {
-                    Log::info("[Rebuild] Server {$this->server->id}: VM {$this->server->vmid} exists");
-                    return;
-                }
-                
+                Log::warning("[Rebuild] Server {$this->server->id}: No installation task found yet.");
                 $this->release($this->backoff);
                 return;
             }
