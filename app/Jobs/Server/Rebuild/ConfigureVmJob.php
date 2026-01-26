@@ -6,7 +6,6 @@ use App\Models\Deployment;
 use App\Models\DeploymentStep;
 use App\Models\Server;
 use App\Services\Proxmox\ProxmoxApiClient;
-use App\Services\Servers\VmSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,46 +32,70 @@ class ConfigureVmJob implements ShouldQueue
 
     public function handle(): void
     {
+        $step = null;
         if ($this->stepId) {
             $step = DeploymentStep::find($this->stepId);
-            $step->start();
+            $step?->start();
         }
         
         Cache::put("server_rebuild_step_{$this->server->id}", 'configuring_vm', 1200);
         
-        $client = new ProxmoxApiClient($this->server->node);
-        $syncService = new VmSyncService();
-        
         Log::info("[Rebuild] Server {$this->server->id}: Configuring VM {$this->server->vmid}");
         
         try {
-            $totalSteps = 3;
-            $currentStep = 0;
-            
-            $syncService->handle($this->server, function () use (&$currentStep, &$step, $stepId) {
-                $currentStep++;
-                
-                if ($step && $stepId) {
-                    $step->updateProgress(
-                        (int) (($currentStep / $totalSteps) * 100),
-                        100
-                    );
-                    
-                    Log::info("[Rebuild] Server {$this->server->id}: Config progress - {$currentStep}/{$totalSteps}");
+            $client = new ProxmoxApiClient($this->server->node);
+            $cloudInitRepo = (new \App\Repositories\Proxmox\Server\ProxmoxCloudinitRepository($client))
+                ->setServer($this->server);
+
+            // 1. Configure User/Password
+            $config = [];
+            if ($this->password) {
+                $config['password'] = $this->password;
+            }
+            // Default user 'root' or 'ubuntu' etc usually handled by template default or we can set strict defaults if needed
+            // For now, let's assume we only set password if provided.
+
+            // 2. Configure SSH Keys
+            if (!empty($this->sshKeyIds)) {
+                $keys = \App\Models\SshKey::whereIn('id', $this->sshKeyIds)->pluck('public_key')->toArray();
+                if (!empty($keys)) {
+                     $config['ssh_keys'] = $keys;
                 }
-            });
+            }
+
+            // 3. Configure Network
+            if (!empty($this->addressIds)) {
+                // Determine primary address
+                $addresses = \App\Models\Address::whereIn('id', $this->addressIds)->get();
+                $primary = $addresses->where('is_primary', true)->first() ?? $addresses->first();
+                
+                if ($primary) {
+                    $config['ip'] = $primary->address . '/' . $primary->cidr;
+                    $config['gateway'] = $primary->gateway;
+                }
+            } else {
+                 // Fallback to server's existing network config if no IDs passed (or maybe just primary)
+                 $primary = $this->server->addresses()->where('is_primary', true)->first();
+                 if ($primary) {
+                     $config['ip'] = $primary->address . '/' . $primary->cidr;
+                     $config['gateway'] = $primary->gateway;
+                 }
+            }
             
+            // Apply Configuration
+            if (!empty($config)) {
+                $cloudInitRepo->configure($config);
+            }
+
             Log::info("[Rebuild] Server {$this->server->id}: VM configured successfully");
             
-            if ($this->stepId) {
-                $step = DeploymentStep::find($this->stepId);
+            if ($step) {
                 $step->complete();
             }
         } catch (\Exception $e) {
             Log::error("[Rebuild] Server {$this->server->id}: Failed to configure VM - " . $e->getMessage());
             
-            if ($this->stepId) {
-                $step = DeploymentStep::find($this->stepId);
+            if ($step) {
                 $step->fail($e->getMessage(), 'configure_failed');
             }
             

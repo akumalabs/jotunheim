@@ -72,15 +72,17 @@ class RebuildServerJob implements ShouldQueue
             new \App\Jobs\Server\Rebuild\HandleRebuildFailureJob($this->server, $this->server->status),
         ];
 
+        $server = $this->server;
+
         \Illuminate\Support\Facades\Bus::chain($chain)
-            ->catch(function (\Throwable $e) {
-                Log::error("Rebuild chain failed for server {$this->server->id}: " . $e->getMessage());
-                $this->server->update([
+            ->catch(function (\Throwable $e) use ($server) {
+                Log::error("Rebuild chain failed for server {$server->id}: " . $e->getMessage());
+                $server->update([
                     'status' => 'failed',
                     'is_installing' => false,
                     'installation_task' => null,
                 ]);
-                \Illuminate\Support\Facades\Cache::forget("server_rebuild_step_{$this->server->id}");
+                \Illuminate\Support\Facades\Cache::forget("server_rebuild_step_{$server->id}");
             })
             ->dispatch();
     }
