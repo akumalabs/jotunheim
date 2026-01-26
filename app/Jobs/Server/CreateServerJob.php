@@ -47,7 +47,7 @@ class CreateServerJob implements ShouldQueue
         $powerRepo = (new ProxmoxPowerRepository($client))->setServer($this->server);
 
         try {
-            // 1. Clone VM
+            // 1. Clone VM (Safe Name)
             logger()->info("Cloning template {$this->templateVmid} to VMID {$this->server->vmid}...");
             
             $taskUpid = $client->cloneVM(
@@ -70,12 +70,13 @@ class CreateServerJob implements ShouldQueue
                  throw new \Exception("VM locked timeout after clone.");
             }
 
-            // 3. Configure Resources (CPU/RAM)
+            // 3. Configure Resources (CPU/RAM + Cosmetic Name)
             logger()->info("Configuring resources...");
             $configRepo->update([
                 'cores' => $this->server->cpu,
                 'memory' => (int) ($this->server->memory / 1024 / 1024), // Bytes to MB
                 'description' => "Managed by Midgard Panel | User: {$this->server->user_id}",
+                'name' => $this->server->name, // Set cosmetic name (allows spaces)
                 'onboot' => 1,
             ]);
 
@@ -83,6 +84,11 @@ class CreateServerJob implements ShouldQueue
             logger()->info("Resizing disk...");
             // Defaulting to scsi0, commonly used
             $configRepo->resizeDisk('scsi0', $this->server->disk); // Takes bytes
+
+            // Wait for Unlock after Resize (Fix Race Condition)
+            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                 throw new \Exception("VM locked timeout after resize.");
+            }
 
             // 5. Cloud-Init Configuration
             logger()->info("Applying Cloud-Init...");
