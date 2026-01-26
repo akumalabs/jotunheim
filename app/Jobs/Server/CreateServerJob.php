@@ -79,10 +79,6 @@ class CreateServerJob implements ShouldQueue
                 'onboot' => 1,
             ]);
 
-            // Set Cosmetic Name (Must use PUT to allow spaces)
-            logger()->info("Setting cosmetic VM name via PUT...");
-            $configRepo->updateViaPut(['name' => $this->server->name]);
-
             // 4. Resize Disk
             logger()->info("Resizing disk...");
             // Defaulting to scsi0, commonly used
