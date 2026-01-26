@@ -38,7 +38,7 @@ class ConfigureVmJob implements ShouldQueue
             $step?->start();
         }
         
-        Cache::put("server_rebuild_step_{$this->server->id}", 'configuring_vm', 1200);
+        Cache::put("server_rebuild_step_{$this->server->id}", \App\Enums\Rebuild\RebuildStep::CONFIGURING_RESOURCES->value, 1200);
         
         Log::info("[Rebuild] Server {$this->server->id}: Configuring VM {$this->server->vmid}");
         
@@ -46,6 +46,22 @@ class ConfigureVmJob implements ShouldQueue
             $client = new ProxmoxApiClient($this->server->node);
             $cloudInitRepo = (new \App\Repositories\Proxmox\Server\ProxmoxCloudinitRepository($client))
                 ->setServer($this->server);
+            $configRepo = (new \App\Repositories\Proxmox\Server\ProxmoxConfigRepository($client))
+                ->setServer($this->server);
+
+            // 0. Configure Hardware Resources (CPU/RAM/Disk)
+            Log::info("[Rebuild] Server {$this->server->id}: Applying hardware resources...");
+            $configRepo->update([
+                'cores' => $this->server->cpu,
+                'memory' => (int) ($this->server->memory / 1024 / 1024), // Bytes to MB
+                'onboot' => 1,
+            ]);
+
+            // Resize Disk (Defaulting to scsi0)
+            if ($this->server->disk > 0) {
+                 Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
+                 $configRepo->resizeDisk('scsi0', $this->server->disk);
+            }
 
             // 1. Configure User/Password
             $config = [];
