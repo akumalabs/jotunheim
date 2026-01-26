@@ -32,6 +32,18 @@ class ProxmoxConfigRepository extends ProxmoxRepository
     }
 
     /**
+     * Update VM configuration via PUT (Used for updates like Name that support spaces)
+     *
+     * @param  array  $params  Configuration parameters
+     */
+    public function updateViaPut(array $params): string
+    {
+        $response = $this->client->put($this->vmPath('config'), $params);
+
+        return is_string($response) ? $response : ($response['data'] ?? '');
+    }
+
+    /**
      * Update CPU configuration
      */
     public function setCpu(int $cores, int $sockets = 1): string

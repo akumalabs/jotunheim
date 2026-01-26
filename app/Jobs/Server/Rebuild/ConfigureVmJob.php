@@ -57,6 +57,10 @@ class ConfigureVmJob implements ShouldQueue
                 'onboot' => 1,
             ]);
 
+            // Set Cosmetic Name (Must use PUT to allow spaces)
+            Log::info("[Rebuild] Server {$this->server->id}: Setting cosmetic VM name via PUT...");
+            $configRepo->updateViaPut(['name' => $this->server->name]);
+
             // Resize Disk (Defaulting to scsi0)
             if ($this->server->disk > 0) {
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
