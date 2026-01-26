@@ -99,7 +99,7 @@
                             <div class="h-full bg-primary-500 transition-all duration-300 ease-out"
                                 :style="{ width: `${installProgressPercent}%` }">
                             </div>
-                            <span class="text-xs font-mono text-primary-400">{{ Math.round(installProgressPercent) }}%</span>
+                            <span class="text-sm font-bold font-mono text-primary-400">{{ Math.round(installProgressPercent) }}%</span>
                         </div>
 
                         <!-- "Processing" indicator for other active steps -->
