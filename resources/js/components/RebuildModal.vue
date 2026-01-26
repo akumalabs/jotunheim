@@ -283,7 +283,7 @@ function startRebuild() {
     const data: any = {
         template_vmid: selectedTemplate.value,
         name: serverName.value,
-        hostname: serverHostname.value,
+        hostname: serverHostname.value || serverName.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
     };
 
     if (newPassword.value) {
