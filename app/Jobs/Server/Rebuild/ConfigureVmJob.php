@@ -39,6 +39,7 @@ class ConfigureVmJob implements ShouldQueue
         }
         
         Cache::put("server_rebuild_step_{$this->server->id}", \App\Enums\Rebuild\RebuildStep::CONFIGURING_RESOURCES->value, 1200);
+        Cache::put("server_rebuild_granular_{$this->server->id}", 76, 120); // Start Config
         
         Log::info("[Rebuild] Server {$this->server->id}: Configuring VM {$this->server->vmid}");
         
@@ -56,6 +57,7 @@ class ConfigureVmJob implements ShouldQueue
                 'memory' => (int) ($this->server->memory / 1024 / 1024), // Bytes to MB
                 'onboot' => 1,
             ]);
+            Cache::put("server_rebuild_granular_{$this->server->id}", 80, 120); // Hardware Applied
 
             // Resize Disk (Defaulting to scsi0)
             if ($this->server->disk > 0) {
@@ -68,6 +70,7 @@ class ConfigureVmJob implements ShouldQueue
                       throw new \Exception("VM locked timeout after resize.");
                  }
             }
+            Cache::put("server_rebuild_granular_{$this->server->id}", 85, 120); // Resize Done
 
             // 1. Configure User/Password
             $config = [];
@@ -108,6 +111,7 @@ class ConfigureVmJob implements ShouldQueue
             if (!empty($config)) {
                 $cloudInitRepo->configure($config);
             }
+            Cache::put("server_rebuild_granular_{$this->server->id}", 88, 120); // Cloud-Init Done
 
             Log::info("[Rebuild] Server {$this->server->id}: VM configured successfully");
             

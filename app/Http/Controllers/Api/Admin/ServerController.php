@@ -530,6 +530,14 @@ class ServerController extends Controller
             } elseif ($step) {
                 $response['progress'] = $step->progressPercentage();
 
+                // Granular progress check for CONFIGURING_RESOURCES
+                if ($step === RebuildStep::CONFIGURING_RESOURCES) {
+                    $granular = Cache::get("server_rebuild_granular_{$server->id}");
+                    if ($granular && $granular > $response['progress']) {
+                         $response['progress'] = (int) $granular;
+                    }
+                }
+
                 if ($step === RebuildStep::CONFIGURING_RESOURCES) {
                     $response['subOperations'] = $step->subOperations();
                 }
