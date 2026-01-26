@@ -46,6 +46,7 @@ class RebuildServerJob implements ShouldQueue
 
         $this->server->update([
             'status' => 'rebuilding',
+            'is_installing' => true,
             'installation_task' => null, // Clear stale task ID to prevent premature 100% progress
         ]);
 
