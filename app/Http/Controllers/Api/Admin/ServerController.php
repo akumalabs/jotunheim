@@ -505,7 +505,7 @@ class ServerController extends Controller
 
                 if ($status['status'] === 'stopped') {
                     if (($status['exitstatus'] ?? 'OK') === 'OK') {
-                        $response['progress'] = 75;
+                        $response['progress'] = 80;
                         $response['status'] = 'running';
                     } else {
                         return response()->json([
@@ -524,7 +524,7 @@ class ServerController extends Controller
                     
                     $cloneProgress = $progressData['progress_percent'] ?? 0;
 
-                    $response['progress'] = 20 + ($cloneProgress * 0.55);
+                    $response['progress'] = 2 + ($cloneProgress * 0.78);
                     $response['cloneProgress'] = $cloneProgress;
                 }
             } elseif ($step) {
