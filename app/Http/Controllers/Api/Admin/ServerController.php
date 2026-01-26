@@ -505,7 +505,7 @@ class ServerController extends Controller
 
                 if ($status['status'] === 'stopped') {
                     if (($status['exitstatus'] ?? 'OK') === 'OK') {
-                        $response['progress'] = 80;
+                        $response['progress'] = 100;
                         $response['status'] = 'running';
                     } else {
                         return response()->json([
@@ -524,19 +524,13 @@ class ServerController extends Controller
                     
                     $cloneProgress = $progressData['progress_percent'] ?? 0;
 
-                    $response['progress'] = 2 + ($cloneProgress * 0.78);
+                    $response['progress'] = $cloneProgress;
                     $response['cloneProgress'] = $cloneProgress;
                 }
             } elseif ($step) {
-                $response['progress'] = $step->progressPercentage();
-
-                // Granular progress check for CONFIGURING_RESOURCES
-                if ($step === RebuildStep::CONFIGURING_RESOURCES) {
-                    $granular = Cache::get("server_rebuild_granular_{$server->id}");
-                    if ($granular && $granular > $response['progress']) {
-                         $response['progress'] = (int) $granular;
-                    }
-                }
+                // For all other steps, we rely on the UI showing a spinner/processing state
+                // hasProgress is false by default in RebuildStep enum for non-INSTALLING_OS steps
+                $response['progress'] = 0; 
 
                 if ($step === RebuildStep::CONFIGURING_RESOURCES) {
                     $response['subOperations'] = $step->subOperations();
@@ -547,8 +541,7 @@ class ServerController extends Controller
                 if ($status['status'] === 'running') {
                     $response['step'] = 'installing_os';
                     $response['stepLabel'] = RebuildStep::INSTALLING_OS->label();
-                    $response['pveTaskType'] = 'qmclone';
-                    $response['hasProgress'] = true;
+                    // ... other fields set by frontend defaults or handled there
                     Cache::put("server_rebuild_step_{$server->id}", 'installing_os', 1200);
                 }
             }

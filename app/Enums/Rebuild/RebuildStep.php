@@ -39,11 +39,11 @@ enum RebuildStep: string
     {
         return match($this) {
             self::STOPPING_SERVER => 0,
-            self::DELETING_SERVER => 1,
-            self::CONFIGURING_RESOURCES => 80,
-            self::BOOTING_SERVER => 95,
+            self::DELETING_SERVER => 0,
+            self::CONFIGURING_RESOURCES => 0,
+            self::BOOTING_SERVER => 0,
             self::FINALIZING => 100,
-            self::INSTALLING_OS => 2, // Base for cloning, will add sub-progress
+            self::INSTALLING_OS => 0, // Dynamic
         };
     }
 
