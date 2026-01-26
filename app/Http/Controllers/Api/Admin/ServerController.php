@@ -478,6 +478,16 @@ class ServerController extends Controller
 
         $step = RebuildStep::tryFrom($cachedStep ?? 'preparing');
 
+        // Fix sync lag: If we have an installation task, we have definitely passed stopping/deleting.
+        // If cache says stopping/deleting, it is stale. Update it to installing.
+        if ($server->installation_task && 
+            (!$step || $step === RebuildStep::STOPPING_SERVER || $step === RebuildStep::DELETING_SERVER)) {
+            
+            $step = RebuildStep::INSTALLING_OS;
+            $cachedStep = 'installing_os';
+            Cache::put("server_rebuild_step_{$server->id}", 'installing_os', 1200);
+        }
+
         $response = [
             'progress' => 0,
             'status' => 'running',
