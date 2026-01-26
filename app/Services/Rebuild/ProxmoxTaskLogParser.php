@@ -17,7 +17,7 @@ class ProxmoxTaskLogParser
             if (preg_match('/transferred\s+([\d.]+)\s+([A-Za-z]+)\s+of\s+([\d.]+)\s+([A-Za-z]+)(?:\s*\(([\d.]+)%\))?/i', $lineData, $matches)) {
                 Log::debug("ProxmoxTaskLogParser matched: " . json_encode($matches));
                 $current = $this->convertToBytes($matches[1], $matches[2]);
-                $total = $this->transferToBytes($matches[3], $matches[4]);
+                $total = $this->convertToBytes($matches[3], $matches[4]);
                 $percentage = min(($current / $total) * 100, 99.9);
                 
                 return [
