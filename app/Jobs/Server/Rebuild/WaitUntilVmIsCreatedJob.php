@@ -76,7 +76,7 @@ class WaitUntilVmIsCreatedJob implements ShouldQueue
                 $logs = $client->getTaskLog($taskId);
                 $progressData = $parser->parseCloneProgress($logs);
                 
-                if ($progressData) {
+                if ($progressData && $this->deployment) {
                     $cloneStep = $this->deployment->steps()->where('name', 'cloning_template')->first();
                     
                     if ($cloneStep) {

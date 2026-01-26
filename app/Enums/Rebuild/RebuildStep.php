@@ -52,4 +52,9 @@ enum RebuildStep: string
         return $this === self::INSTALLING_OS;
     }
 
+    public function subOperations(): array
+    {
+        return [];
+    }
+
 }

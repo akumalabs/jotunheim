@@ -54,7 +54,6 @@ class ConfigureVmJob implements ShouldQueue
             $configRepo->update([
                 'cores' => $this->server->cpu,
                 'memory' => (int) ($this->server->memory / 1024 / 1024), // Bytes to MB
-                'name' => $this->server->name, // Set cosmetic name (allows spaces)
                 'onboot' => 1,
             ]);
 
