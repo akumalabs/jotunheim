@@ -29,7 +29,7 @@ class WaitUntilVmIsCreatedJob implements ShouldQueue
     public function handle(): void
     {
         $client = new \App\Services\Proxmox\ProxmoxApiClient($this->server->node);
-        $parser = new \App\Services\Rebuild\ProxmoxTaskLogParser();
+
         
         Log::info("[Rebuild] Server {$this->server->id}: Monitoring VM {$this->server->vmid} creation progress");
         
@@ -72,22 +72,12 @@ class WaitUntilVmIsCreatedJob implements ShouldQueue
                 }
             }
             
-            if ($status['status'] === 'running') {
-                $logs = $client->getTaskLog($taskId);
-                $progressData = $parser->parseCloneProgress($logs);
-                
-                if ($progressData && $this->deployment) {
-                    $cloneStep = $this->deployment->steps()->where('name', 'cloning_template')->first();
-                    
-                    if ($cloneStep) {
-                        $cloneStep->updateProgress(
-                            (int) $progressData['progress_percent'],
-                            100
-                        );
-                        
-                        Log::info("[Rebuild] Server {$this->server->id}: Clone progress - {$progressData['current_formatted']} / {$progressData['total_formatted']} ({$progressData['progress_percent']}%)");
-                    }
-                }
+            if ($status['status'] === 'running' && $this->deployment) {
+                 // Just update deployment step to 'in progress' if needed, but no % updates.
+                 $cloneStep = $this->deployment->steps()->where('name', 'cloning_template')->first();
+                 
+                 // Optionally log that it's still running
+                 // Log::info("[Rebuild] Server {$this->server->id}: Clone task running...");
             }
             
             $this->release($this->backoff);

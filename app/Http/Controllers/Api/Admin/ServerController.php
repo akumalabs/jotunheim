@@ -519,23 +519,10 @@ class ServerController extends Controller
                         ]);
                     }
                 } else {
-                    $log = $client->getTaskLog($server->installation_task);
-                    $parser = new \App\Services\Rebuild\ProxmoxTaskLogParser();
-                    $progressData = $parser->parseCloneProgress($log);
-                    
-                    $cloneProgress = $progressData['progress_percent'] ?? 0;
-                    
-                    // Fallback to task status progress if log parsing failed or returned 0
-                    if ($cloneProgress <= 0 && isset($status['progress'])) {
-                         $statusProgress = $status['progress'] * 100;
-                         Log::debug("InstallProgress: Log parsing yielded 0%, falling back to status progress: {$statusProgress}%");
-                         $cloneProgress = $statusProgress;
-                    }
-
-                    $response['progress'] = $cloneProgress;
-                    $response['cloneProgress'] = $cloneProgress;
-                    
-                    Log::debug("InstallProgress: Final progress: {$cloneProgress}%");
+                    // Task is running
+                    $response['progress'] = 0;
+                    $response['status'] = 'running';
+                    // We don't parse logs anymore, just wait for completion.
                 }
             } elseif ($step) {
                 // For all other steps, we rely on the UI showing a spinner/processing state

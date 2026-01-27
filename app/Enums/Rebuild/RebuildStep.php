@@ -49,7 +49,7 @@ enum RebuildStep: string
 
     public function hasProgress(): bool
     {
-        return $this === self::INSTALLING_OS;
+        return false;
     }
 
     public function subOperations(): array
