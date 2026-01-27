@@ -194,6 +194,12 @@ if [ ! -f .env ]; then
     # Run migrations
     echo "Running database migrations..."
     php artisan migrate --seed --force || echo "WARNING: Migrations failed, please check database connection in .env"
+
+    # Clear route cache to ensure routes are fresh
+    echo "Clearing route cache..."
+    php artisan route:clear || true
+    php artisan config:clear || true
+    php artisan cache:clear || true
 fi
 
 # Set permissions
