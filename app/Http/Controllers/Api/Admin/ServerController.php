@@ -523,6 +523,11 @@ class ServerController extends Controller
                     $progressData = $parser->parseCloneProgress($log);
                     
                     $cloneProgress = $progressData['progress_percent'] ?? 0;
+                    
+                    // Fallback to task status progress if log parsing failed
+                    if ($cloneProgress <= 0 && isset($status['progress'])) {
+                         $cloneProgress = $status['progress'] * 100;
+                    }
 
                     $response['progress'] = $cloneProgress;
                     $response['cloneProgress'] = $cloneProgress;

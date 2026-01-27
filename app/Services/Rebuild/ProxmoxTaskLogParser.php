@@ -15,7 +15,7 @@ class ProxmoxTaskLogParser
             $lineData = $line['t'] ?? '';
             
             // Explicit check for completion
-            if (str_contains($lineData, '100% complete')) {
+            if (str_contains($lineData, '100% complete') || str_contains($lineData, 'clone finished')) {
                  return [
                     'current_bytes' => 0,
                     'total_bytes' => 0,
