@@ -127,22 +127,22 @@ echo "Building frontend assets..."
 npm run build
 
 # Copy environment file
-if [ ! -f .env ]; then
-    if [ -f .env.example ]; then
-        echo "Creating .env file..."
-        cp .env.example .env
-    else
-        echo -e "${RED}ERROR: .env.example not found!${NC}"
-        exit 1
-    fi
+echo "Setting up environment configuration..."
 
-    # Generate app key
-    php artisan key:generate
+# Remove existing .env if present (ensure fresh config)
+if [ -f .env ]; then
+    echo "Removing existing .env file..."
+    rm -f .env
+fi
 
-    # Use hardcoded database password
-    DB_PASSWORD="Rdp12345!"
+# Use hardcoded database password
+DB_PASSWORD="Rdp12345!"
 
-    # Configure .env with dedicated database user using cat/heredoc for reliability
+# Generate app key BEFORE creating .env file
+echo "Generating application key..."
+APP_KEY=$(php artisan key:generate --show)
+
+# Configure .env with dedicated database user using cat/heredoc for reliability
     cat > .env <<ENVEOF
 APP_NAME=Jotunheim
 APP_ENV=production
