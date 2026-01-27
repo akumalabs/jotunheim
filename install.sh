@@ -10,12 +10,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Jotunheim Installation Script${NC}"
+echo -e "\${GREEN}Jotunheim Installation Script\${NC}"
 echo "============================="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Please run as root${NC}"
+    echo -e "\${RED}Please run as root\${NC}"
     exit 1
 fi
 
@@ -25,25 +25,25 @@ if [ -f /etc/os-release ]; then
     OS=$ID
     VERSION=$VERSION_ID
 else
-    echo -e "${RED}Cannot detect OS${NC}"
+    echo -e "\${RED}Cannot detect OS\${NC}"
     exit 1
 fi
 
 if [[ "$OS" != "ubuntu" && "$OS" != "debian" ]]; then
-    echo -e "${RED}Unsupported OS: $OS. Only Ubuntu and Debian are supported.${NC}"
+    echo -e "\${RED}Unsupported OS: $OS. Only Ubuntu and Debian are supported.\${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}Detected OS: $OS $VERSION${NC}"
+echo -e "\${GREEN}Detected OS: $OS $VERSION\${NC}"
 
 # Pre-flight check: Make sure we have enough disk space
 echo "Checking disk space..."
 DISK_AVAIL=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
 if [ "$DISK_AVAIL" -lt 10 ]; then
-    echo -e "${RED}ERROR: Less than 10GB disk space available. Please free up space.${NC}"
+    echo -e "\${RED}ERROR: Less than 10GB disk space available. Please free up space.\${NC}"
     exit 1
 fi
-echo -e "${GREEN}Disk space check passed: ${DISK_AVAIL}GB available${NC}"
+echo -e "\${GREEN}Disk space check passed: \${DISK_AVAIL}GB available\${NC}"
 
 # Update system
 echo "Updating system packages..."
@@ -100,19 +100,19 @@ for i in {1..30}; do
         echo "MySQL is ready!"
         break
     fi
-    echo "Waiting for MySQL... ($i/30)"
+    echo "Waiting for MySQL... (\$i/30)"
     sleep 2
 done
 
 # Clone repository
 INSTALL_DIR="/var/www/jotunheim"
-echo "Cloning Jotunheim to $INSTALL_DIR..."
-if [ -d "$INSTALL_DIR" ]; then
+echo "Cloning Jotunheim to \$INSTALL_DIR..."
+if [ -d "\$INSTALL_DIR" ]; then
     echo "Directory already exists, removing..."
-    rm -rf "$INSTALL_DIR"
+    rm -rf "\$INSTALL_DIR"
 fi
-git clone https://github.com/akumalabs/jotunheim.git "$INSTALL_DIR"
-cd "$INSTALL_DIR"
+git clone https://github.com/akumalabs/jotunheim.git "\$INSTALL_DIR"
+cd "\$INSTALL_DIR"
 
 # Install PHP dependencies
 echo "Installing PHP dependencies..."
@@ -138,170 +138,159 @@ fi
 # Use hardcoded database password
 DB_PASSWORD="Rdp12345!"
 
-# Generate app key BEFORE creating .env file
+# Copy .env.example to .env
+echo "Copying .env.example to .env..."
+if [ -f .env.example ]; then
+    cp .env.example .env
+else
+    echo -e "\${RED}ERROR: .env.example not found!\${NC}"
+    exit 1
+fi
+
+# Update .env with sed (in-place editing)
+echo "Configuring .env file..."
+sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
+sed -i 's|APP_URL=.*|APP_URL=http://localhost|' .env
+sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
+sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
+sed -i 's/DB_HOST=.*/DB_HOST=127.0.0.1/' .env
+sed -i 's/DB_PORT=.*/DB_PORT=3306/' .env
+sed -i 's/DB_DATABASE=jotunheim/DB_DATABASE=jotunheim/' .env
+sed -i 's/DB_USERNAME=jotunheim/DB_USERNAME=jotunheim/' .env
+sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=\$DB_PASSWORD/" .env
+sed -i 's/CACHE_STORE=.*/CACHE_STORE=redis/' .env
+sed -i 's/QUEUE_CONNECTION=.*/QUEUE_CONNECTION=redis/' .env
+sed -i 's/SESSION_DRIVER=.*/SESSION_DRIVER=redis/' .env
+
+# Generate APP_KEY AFTER .env is configured
 echo "Generating application key..."
-APP_KEY=$(php artisan key:generate --show)
+php artisan key:generate --no-interaction --quiet
 
-# Configure .env with dedicated database user using cat/heredoc for reliability
-    cat > .env <<ENVEOF
-APP_NAME=Jotunheim
-APP_ENV=production
-APP_KEY=$(php artisan key:generate --show)
-APP_DEBUG=false
-APP_URL=http://localhost
+# Display database credentials for reference
+echo -e "\${GREEN}Database credentials:\${NC}"
+echo -e "  Username: jotunheim"
+echo -e "  Password: \${YELLOW}\$DB_PASSWORD\${NC}"
 
-LOG_CHANNEL=stack
-LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=jotunheim
-DB_USERNAME=jotunheim
-DB_PASSWORD=$DB_PASSWORD
-
-BROADCAST_DRIVER=log
-CACHE_STORE=redis
-FILESYSTEM_DISK=local
-QUEUE_CONNECTION=redis
-SESSION_DRIVER=redis
-SESSION_LIFETIME=120
-
-MEMCACHED_HOST=127.0.0.1
-
-REDIS_CLIENT=phpredis
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=null
-REDIS_PORT=6379
-
-# Application Settings
-BACKUP_MAX_BACKUPS=5
-SERVER_DEFAULT_PASSWORD_LENGTH=16
-SERVER_MAX_PASSWORD_LENGTH=72
-SERVER_MIN_PASSWORD_LENGTH=8
-
-# Proxmox Settings
-PROXMOX_VERIFY_SSL=true
-PROXMOX_API_TIMEOUT=30
-PROXMOX_CONNECT_TIMEOUT=5
-
-MAIL_MAILER=log
-MAIL_HOST=127.0.0.1
-MAIL_PORT=2525
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_ENCRYPTION=null
-MAIL_FROM_ADDRESS="hello@example.com"
-MAIL_FROM_NAME="\${APP_NAME}"
-ENVEOF
-
-    # Display password for reference
-    echo -e "${YELLOW}Database password: $DB_PASSWORD${NC}"
-
-    # Create database and user
-    echo "Setting up database..."
-    if command -v mysql &> /dev/null; then
-        if mysql -uroot -pjotunheim -e "
-            CREATE DATABASE IF NOT EXISTS jotunheim;
-            CREATE USER IF NOT EXISTS 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-            GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
-            FLUSH PRIVILEGES;
-        " 2>/dev/null; then
-            echo "Database and user created successfully!"
-            echo "Verifying connection with new credentials..."
-            if command -v mysql &> /dev/null; then
-                if mysql -ujotunheim -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
-                    echo -e "${GREEN}✓ Database connection verified${NC}"
-                else
-                    echo -e "${RED}✗ Connection failed! Password mismatch detected.${NC}"
-                    echo -e "${YELLOW}Current DB_PASSWORD in .env: $DB_PASSWORD${NC}"
-                    echo -e "${YELLOW}Fixing by recreating user...${NC}"
-                    mysql -uroot -pjotunheim -e "
-                        DROP USER IF EXISTS 'jotunheim'@'localhost';
-                        CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-                        GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
-                        FLUSH PRIVILEGES;
-                    " 2>/dev/null && echo -e "${GREEN}✓ User recreated successfully${NC}"
-                fi
-            elif command -v mariadb &> /dev/null; then
-                if mariadb -ujotunheim -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
-                    echo -e "${GREEN}✓ Database connection verified${NC}"
-                else
-                    echo -e "${RED}✗ Connection failed! Password mismatch detected.${NC}"
-                    echo -e "${YELLOW}Current DB_PASSWORD in .env: $DB_PASSWORD${NC}"
-                    echo -e "${YELLOW}Fixing by recreating user...${NC}"
-                    mariadb -uroot -pjotunheim -e "
-                        DROP USER IF EXISTS 'jotunheim'@'localhost';
-                        CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-                        GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
-                        FLUSH PRIVILEGES;
-                    " 2>/dev/null && echo -e "${GREEN}✓ User recreated successfully${NC}"
-                fi
-            fi
-        else
-            echo "WARNING: Failed to create database automatically."
-            echo "Please run manually:"
-            echo "  mysql -uroot -pjotunheim"
-            echo "  CREATE DATABASE jotunheim;"
-            echo "  CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_password';"
-            echo "  GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
-            echo "  FLUSH PRIVILEGES;"
-            echo "Then update .env with the correct DB_PASSWORD"
-        fi
-    elif command -v mariadb &> /dev/null; then
-        if mariadb -uroot -pjotunheim -e "
-            CREATE DATABASE IF NOT EXISTS jotunheim;
-            CREATE USER IF NOT EXISTS 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-            GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
-            FLUSH PRIVILEGES;
-        " 2>/dev/null; then
-            echo "Database and user created successfully!"
-            echo "Verifying connection with new credentials..."
-            if mariadb -ujotunheim -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
-                echo -e "${GREEN}✓ Database connection verified${NC}"
+# Create database and user
+echo "Setting up database..."
+if command -v mysql &> /dev/null; then
+    if mysql -uroot -pjotunheim -e "
+        CREATE DATABASE IF NOT EXISTS jotunheim;
+        CREATE USER IF NOT EXISTS 'jotunheim'@'localhost' IDENTIFIED BY '\$DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+        FLUSH PRIVILEGES;
+    " 2>/dev/null; then
+        echo "Database and user created successfully!"
+        echo "Verifying connection with new credentials..."
+        if command -v mysql &> /dev/null; then
+            if mysql -ujotunheim -p"\$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                echo -e "\${GREEN}✓ Database connection verified\${NC}"
             else
-                echo -e "${RED}✗ Connection failed! Password mismatch detected.${NC}"
-                echo -e "${YELLOW}Current DB_PASSWORD in .env: $DB_PASSWORD${NC}"
-                echo -e "${YELLOW}Fixing by recreating user...${NC}"
-                mariadb -uroot -pjotunheim -e "
+                echo -e "\${RED}✗ Connection failed! Password mismatch detected.\${NC}"
+                echo -e "\${YELLOW}Current DB_PASSWORD in .env: \$DB_PASSWORD\${NC}"
+                echo -e "\${YELLOW}Fixing by recreating user...\${NC}"
+                mysql -uroot -pjotunheim -e "
                     DROP USER IF EXISTS 'jotunheim'@'localhost';
-                    CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+                    CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '\$DB_PASSWORD';
                     GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
                     FLUSH PRIVILEGES;
-                " 2>/dev/null && echo -e "${GREEN}✓ User recreated successfully${NC}"
+                " 2>/dev/null && echo -e "\${GREEN}✓ User recreated successfully\${NC}"
             fi
-        else
-            echo "WARNING: Failed to create database automatically."
-            echo "Please run manually:"
-            echo "  mariadb -uroot -pjotunheim"
-            echo "  CREATE DATABASE jotunheim;"
-            echo "  CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_password';"
-            echo "  GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
-            echo "  FLUSH PRIVILEGES;"
-            echo "Then update .env with the correct DB_PASSWORD"
+        elif command -v mariadb &> /dev/null; then
+            if mariadb -ujotunheim -p"\$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                echo -e "\${GREEN}✓ Database connection verified\${NC}"
+            else
+                echo -e "\${RED}✗ Connection failed! Password mismatch detected.\${NC}"
+                echo -e "\${YELLOW}Current DB_PASSWORD in .env: \$DB_PASSWORD\${NC}"
+                echo -e "\${YELLOW}Fixing by recreating user...\${NC}"
+                mariadb -uroot -pjotunheim -e "
+                    DROP USER IF EXISTS 'jotunheim'@'localhost';
+                    CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '\$DB_PASSWORD';
+                    GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+                    FLUSH PRIVILEGES;
+                " 2>/dev/null && echo -e "\${GREEN}✓ User recreated successfully\${NC}"
+            fi
         fi
     else
-        echo "WARNING: Neither mysql nor mariadb command found."
-        echo "Please create database and user manually, then update .env"
+        echo "WARNING: Failed to create database automatically."
+        echo "Please run manually:"
+        echo "  mysql -uroot -pjotunheim"
+        echo "  CREATE DATABASE jotunheim;"
+        echo "  CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_password';"
+        echo "  GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
+        echo "  FLUSH PRIVILEGES;"
+        echo "Then update .env with correct DB_PASSWORD"
     fi
+elif command -v mariadb &> /dev/null; then
+    if mariadb -uroot -pjotunheim -e "
+        CREATE DATABASE IF NOT EXISTS jotunheim;
+        CREATE USER IF NOT EXISTS 'jotunheim'@'localhost' IDENTIFIED BY '\$DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+        FLUSH PRIVILEGES;
+    " 2>/dev/null; then
+        echo "Database and user created successfully!"
+        echo "Verifying connection with new credentials..."
+        if command -v mysql &> /dev/null; then
+            if mysql -ujotunheim -p"\$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                echo -e "\${GREEN}✓ Database connection verified\${NC}"
+            else
+                echo -e "\${RED}✗ Connection failed! Password mismatch detected.\${NC}"
+                echo -e "\${YELLOW}Current DB_PASSWORD in .env: \$DB_PASSWORD\${NC}"
+                echo -e "\${YELLOW}Fixing by recreating user...\${NC}"
+                mysql -uroot -pjotunheim -e "
+                    DROP USER IF EXISTS 'jotunheim'@'localhost';
+                    CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '\$DB_PASSWORD';
+                    GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+                    FLUSH PRIVILEGES;
+                " 2>/dev/null && echo -e "\${GREEN}✓ User recreated successfully\${NC}"
+            fi
+        elif command -v mariadb &> /dev/null; then
+            if mariadb -ujotunheim -p"\$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                echo -e "\${GREEN}✓ Database connection verified\${NC}"
+            else
+                echo -e "\${RED}✗ Connection failed! Password mismatch detected.\${NC}"
+                echo -e "\${YELLOW}Current DB_PASSWORD in .env: \$DB_PASSWORD\${NC}"
+                echo -e "\${YELLOW}Fixing by recreating user...\${NC}"
+                mariadb -uroot -pjotunheim -e "
+                    DROP USER IF EXISTS 'jotunheim'@'localhost';
+                    CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '\$DB_PASSWORD';
+                    GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+                    FLUSH PRIVILEGES;
+                " 2>/dev/null && echo -e "\${GREEN}✓ User recreated successfully\${NC}"
+            fi
+        fi
+    else
+        echo "WARNING: Failed to create database automatically."
+        echo "Please run manually:"
+        echo "  mariadb -uroot -pjotunheim"
+        echo "  CREATE DATABASE jotunheim;"
+        echo "  CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_password';"
+        echo "  GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
+        echo "  FLUSH PRIVILEGES;"
+        echo "Then update .env with correct DB_PASSWORD"
+    fi
+else
+    echo "WARNING: Neither mysql nor mariadb command found."
+    echo "Please create database and user manually, then update .env"
+fi
 
-    # Run migrations
-    echo "Running database migrations..."
-    php artisan migrate --seed --force || echo "WARNING: Migrations failed, please check database connection in .env"
+# Run migrations
+echo "Running database migrations..."
+php artisan migrate --seed --force || echo "WARNING: Migrations failed, please check database connection in .env"
 
-    # Clear route cache to ensure routes are fresh
-    echo "Clearing route cache..."
-    php artisan route:clear || true
-    php artisan config:clear || true
-    php artisan cache:clear || true
+# Clear route cache to ensure routes are fresh
+echo "Clearing route cache..."
+php artisan route:clear || true
+php artisan config:clear || true
+php artisan cache:clear || true
+
 fi
 
 # Set permissions
 echo "Setting file permissions..."
-chown -R www-data:www-data "$INSTALL_DIR"
-chmod -R 755 "$INSTALL_DIR/storage"
-chmod -R 755 "$INSTALL_DIR/bootstrap/cache"
+chown -R www-data:www-data "\$INSTALL_DIR"
+chmod -R 755 "\$INSTALL_DIR/storage"
+chmod -R 755 "\$INSTALL_DIR/bootstrap/cache"
 
 # Configure Nginx
 echo "Configuring Nginx..."
@@ -316,13 +305,13 @@ server {
     charset utf-8;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
     location ~ \.php$ {
         fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
         fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
     }
 
@@ -369,51 +358,51 @@ systemctl restart php8.2-fpm
 
 # Final verification
 echo ""
-echo -e "${YELLOW}Verifying installation...${NC}"
+echo -e "\${YELLOW}Verifying installation...\${NC}"
 echo ""
 
 # Check services
 SERVICES_OK=true
 for service in nginx php8.2-fpm redis-server; do
-    if systemctl is-active --quiet "$service"; then
-        echo -e "${GREEN}✓ $service is running${NC}"
+    if systemctl is-active --quiet "\$service"; then
+        echo -e "\${GREEN}✓ \$service is running\${NC}"
     else
-        echo -e "${RED}✗ $service is NOT running${NC}"
+        echo -e "\${RED}✗ \$service is NOT running\${NC}"
         SERVICES_OK=false
     fi
 done
 
 # Check MySQL/MariaDB
 if command -v mysql &> /dev/null || command -v mariadb &> /dev/null; then
-    echo -e "${GREEN}✓ MySQL/MariaDB is installed${NC}"
+    echo -e "\${GREEN}✓ MySQL/MariaDB is installed\${NC}"
 else
-    echo -e "${RED}✗ MySQL/MariaDB is NOT installed or not in PATH${NC}"
+    echo -e "\${RED}✗ MySQL/MariaDB is NOT installed or not in PATH\${NC}"
     SERVICES_OK=false
 fi
 
 # Check application
-if [ -f "$INSTALL_DIR/public/index.php" ]; then
-    echo -e "${GREEN}✓ Application files are present${NC}"
+if [ -f "\$INSTALL_DIR/public/index.php" ]; then
+    echo -e "\${GREEN}✓ Application files are present\${NC}"
 else
-    echo -e "${RED}✗ Application files are missing${NC}"
+    echo -e "\${RED}✗ Application files are missing\${NC}"
     SERVICES_OK=false
 fi
 
-if [ -f "$INSTALL_DIR/.env" ]; then
-    echo -e "${GREEN}✓ .env file exists${NC}"
+if [ -f "\$INSTALL_DIR/.env" ]; then
+    echo -e "\${GREEN}✓ .env file exists\${NC}"
 else
-    echo -e "${YELLOW}⚠ .env file not found${NC}"
+    echo -e "\${YELLOW}⚠ .env file not found\${NC}"
 fi
 
 echo ""
-echo -e "${GREEN}=============================${NC}"
-if [ "$ERRORS" -eq 0 ] && [ "$SERVICES_OK" = true ]; then
-    echo -e "${GREEN}Installation Complete!${NC}"
+echo -e "\${GREEN}============================\${NC}"
+if [ "\$ERRORS" -eq 0 ] && [ "\$SERVICES_OK" = true ]; then
+    echo -e "\${GREEN}Installation Complete!\${NC}"
 else
-    echo -e "${YELLOW}Installation completed with warnings/errors${NC}"
-    echo -e "${RED}Errors encountered: $ERRORS${NC}"
+    echo -e "\${YELLOW}Installation completed with warnings/errors\${NC}"
+    echo -e "\${RED}Errors encountered: \$ERRORS\${NC}"
 fi
-echo -e "${GREEN}=============================${NC}"
+echo -e "\${GREEN}============================\${NC}"
 echo ""
 echo "Your Jotunheim panel is now installed."
 echo ""
@@ -421,15 +410,15 @@ echo "Default credentials:"
 echo "  Email: admin@jotunheim.local"
 echo "  Password: Password123!"
 echo ""
-echo "Access your panel at: http://$(hostname -I | awk '{print $1}')"
+echo "Access your panel at: http://\$(hostname -I | awk '{print \$1}')"
 echo ""
 echo "Next steps:"
 echo "  1. Update your .env file with your Proxmox credentials"
 echo "  2. Configure your domain in Nginx"
 echo "  3. Enable SSL with Let's Encrypt: certbot --nginx -d yourdomain.com"
 echo ""
-if [ "$ERRORS" -gt 0 ] || [ "$SERVICES_OK" = false ]; then
-    echo -e "${YELLOW}IMPORTANT: Please check the warnings above and fix any issues manually.${NC}"
+if [ "\$ERRORS" -gt 0 ] || [ "\$SERVICES_OK" = false ]; then
+    echo -e "\${YELLOW}IMPORTANT: Please check warnings above and fix any issues manually.\${NC}"
     echo ""
 fi
 echo "Thank you for installing Jotunheim!"
