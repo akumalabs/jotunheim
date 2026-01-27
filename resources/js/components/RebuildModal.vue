@@ -100,7 +100,7 @@
                                     :style="{ width: `${installProgressPercent}%` }">
                                 </div>
                             </div>
-                            <span class="text-sm font-bold font-mono text-primary-400 min-w-[3ch] text-right">{{ Math.round(installProgressPercent) }}%</span>
+                            <span class="text-lg font-bold font-mono text-primary-400 min-w-[3ch] text-right">{{ Math.round(installProgressPercent) }}%</span>
                         </div>
 
                         <!-- "Processing" indicator for other active steps -->

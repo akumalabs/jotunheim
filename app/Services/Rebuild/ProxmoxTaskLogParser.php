@@ -14,6 +14,17 @@ class ProxmoxTaskLogParser
         foreach ($logs as $line) {
             $lineData = $line['t'] ?? '';
             
+            // Explicit check for completion
+            if (str_contains($lineData, '100% complete')) {
+                 return [
+                    'current_bytes' => 0,
+                    'total_bytes' => 0,
+                    'progress_percent' => 100,
+                    'current_formatted' => '100%',
+                    'total_formatted' => '100%',
+                ];
+            }
+            
             if (preg_match('/transferred\s+([\d.]+)\s+([A-Za-z]+)\s+of\s+([\d.]+)\s+([A-Za-z]+)(?:\s*\(([\d.]+)%\))?/i', $lineData, $matches)) {
                 Log::debug("ProxmoxTaskLogParser matched: " . json_encode($matches));
                 $current = $this->convertToBytes($matches[1], $matches[2]);
