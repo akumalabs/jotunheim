@@ -37,11 +37,14 @@ echo -e "${GREEN}Detected OS: $OS $VERSION${NC}"
 # Update system
 echo "Updating system packages..."
 apt-get update -qq
-apt-get upgrade -y -qq
+
+# Fix any broken packages
+echo "Fixing broken packages..."
+apt-get --fix-broken install -y -qq || true
 
 # Install required packages
 echo "Installing required packages..."
-apt-get install -y -qq \
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --fix-missing \
     curl \
     wget \
     git \
@@ -69,7 +72,7 @@ apt-get install -y -qq \
 echo "Installing MySQL..."
 debconf-set-selections <<< "mysql-server mysql-server/root_password password jotunheim"
 debconf-set-selections <<< "mysql-server mysql-server/root_password_again password jotunheim"
-apt-get install -y -qq mysql-server
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --fix-missing mysql-server mariadb-server || true
 
 # Clone repository
 INSTALL_DIR="/var/www/jotunheim"
