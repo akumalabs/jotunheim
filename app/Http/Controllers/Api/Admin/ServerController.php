@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Enums\Rebuild\RebuildStep;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ServerUpdateResourcesRequest;
 use App\Models\Address;
 use App\Repositories\Proxmox\Server\ProxmoxConfigRepository;
 use App\Models\Node;
 use App\Models\Server;
-use App\Models\User;
 use App\Services\Proxmox\ProxmoxApiClient;
 use App\Services\Proxmox\ProxmoxApiException;
 use Illuminate\Http\JsonResponse;
@@ -909,14 +909,9 @@ class ServerController extends Controller
     /**
      * Update server resources (CPU, Memory, Disk, Bandwidth).
      */
-    public function updateResources(Request $request, Server $server): JsonResponse
+    public function updateResources(ServerUpdateResourcesRequest $request, Server $server): JsonResponse
     {
-        $validated = $request->validate([
-            'cpu' => ['sometimes', 'integer', 'min:1', 'max:128'],
-            'memory' => ['sometimes', 'integer', 'min:536870912'], // 512MB min
-            'disk' => ['sometimes', 'integer', 'min:' . $server->disk], // Can only upgrade disk
-            'bandwidth_limit' => ['sometimes', 'nullable', 'integer', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         try {
             $client = new ProxmoxApiClient($server->node);

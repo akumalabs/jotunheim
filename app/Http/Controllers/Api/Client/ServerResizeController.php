@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Client\ServerResizeRequest;
 use App\Models\Server;
 use App\Services\Servers\ServerResizeService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ServerResizeController extends Controller
 {
@@ -17,7 +17,7 @@ class ServerResizeController extends Controller
     /**
      * Resize server resources (CPU, memory, disk).
      */
-    public function resize(Request $request, string $uuid): JsonResponse
+    public function resize(ServerResizeRequest $request, string $uuid): JsonResponse
     {
         $server = $request->user()
             ->servers()
@@ -30,11 +30,7 @@ class ServerResizeController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
-            'cpu' => ['sometimes', 'integer', 'min:1', 'max:32'],
-            'memory' => ['sometimes', 'integer', 'min:512', 'max:1024*1024'],
-            'disk' => ['sometimes', 'integer', 'min:10', 'max:10240'],
-        ]);
+        $validated = $request->validated();
 
         $this->resizeService->resize($server, $validated);
 
