@@ -64,9 +64,12 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --fix-missing \
     php8.2-zip \
     php8.2-intl \
     php8.2-gd \
-    composer \
-    nodejs \
-    npm
+    composer
+
+# Install Node.js 20 (required by Vite 7)
+echo "Installing Node.js 20..."
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs
 
 # Install MySQL/MariaDB
 echo "Installing MySQL..."
