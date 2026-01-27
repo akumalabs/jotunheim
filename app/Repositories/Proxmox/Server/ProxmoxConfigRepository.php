@@ -76,7 +76,7 @@ class ProxmoxConfigRepository extends ProxmoxRepository
     public function resizeDisk(string $disk, int $bytes): string
     {
         // Proxmox expects size in kibibytes for resize
-        $kib = (int) ceil($bytes / 1024);
+        $kib = (int) round($bytes / 1024);
 
         $response = $this->client->put($this->vmPath('resize'), [
             'disk' => $disk,

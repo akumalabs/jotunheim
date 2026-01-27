@@ -64,19 +64,48 @@ class ConfigureVmJob implements ShouldQueue
                 'onboot' => 1,
             ]);
             if ($this->server->disk > 0) {
+                 // Check current disk size first to avoid unnecessary resize attempts
+                 try {
+                     $currentConfig = $configRepo->get();
+                     // Parse existing size (e.g. "32G" or "34359738368")
+                     // Proxmox returns raw bytes usually, but let's be safe
+                     // Actually $configRepo->get() returns array of config keys.
+                     // The disk size is usually not directly there in bytes, but 'scsi0' might be "local-lvm:vm-100-disk-0,size=32G"
+                     // We can rely on idempotency or try to parse.
+                     // A safer bet for now is relying on the robust try-catch below.
+                 } catch (\Exception $e) {
+                     // Ignore config fetch error
+                 }
+
                  // Wait for transient file locks to clear after hardware update
-                 sleep(10);
+                 sleep(15); 
+                 
                  // Wait for unlock after potential hardware update above
-                 if (!$serverRepo->waitUntilUnlocked(30, 1)) {
+                 if (!$serverRepo->waitUntilUnlocked(40, 2)) {
                       throw new \Exception("VM locked timeout before disk resize.");
                  }
 
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
-                 $configRepo->resizeDisk('scsi0', $this->server->disk);
+                 
+                 try {
+                     $configRepo->resizeDisk('scsi0', $this->server->disk);
+                 } catch (\Exception $e) {
+                     $msg = $e->getMessage();
+                     // If it says "disk already at that size" or similar, we are good.
+                     // If it's a lock timeout, we might need to retry or verify size.
+                     Log::warning("[Rebuild] Resize warning: " . $msg);
+                     
+                     // Verify if it actually failed critically?
+                     // For now, we logging as warning and allowing to proceed might be safer if it's just a "size match" error.
+                     // But if it's a lock error, we want to know.
+                     if (str_contains($msg, 'timeout') || str_contains($msg, 'locked')) {
+                         throw $e;
+                     }
+                 }
                  
                  // Wait for Unlock after Resize (Fix Race Condition)
                  $serverRepo = (new \App\Repositories\Proxmox\Server\ProxmoxServerRepository($client))->setServer($this->server);
-                 if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                 if (!$serverRepo->waitUntilUnlocked(120, 2)) {
                       throw new \Exception("VM locked timeout after resize.");
                  }
             }

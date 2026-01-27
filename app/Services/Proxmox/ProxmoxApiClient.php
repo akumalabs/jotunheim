@@ -34,7 +34,7 @@ class ProxmoxApiClient
             ->withOptions([
                 'verify' => $verify,
             ])
-            ->timeout(300);
+            ->timeout(600);
     }
 
     /**
