@@ -427,7 +427,7 @@ class ProxmoxApiClient
     {
         $nodeName = $nodeName ?? $this->getProxmoxNodeName();
 
-        return $this->get("/nodes/{$nodeName}/tasks/{$taskId}/status");
+        return $this->get("/nodes/{$nodeName}/tasks/{$taskId}/status?_t=" . time());
     }
 
     /**

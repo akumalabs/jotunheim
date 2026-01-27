@@ -64,21 +64,41 @@ class ConfigureVmJob implements ShouldQueue
                 'onboot' => 1,
             ]);
             if ($this->server->disk > 0) {
-                 // Check current disk size first to avoid unnecessary resize attempts
+                 // 1. Pre-check: Don't resize if already large enough
                  try {
                      $currentConfig = $configRepo->get();
-                     // Parse existing size (e.g. "32G" or "34359738368")
-                     // Proxmox returns raw bytes usually, but let's be safe
-                     // Actually $configRepo->get() returns array of config keys.
-                     // The disk size is usually not directly there in bytes, but 'scsi0' might be "local-lvm:vm-100-disk-0,size=32G"
-                     // We can rely on idempotency or try to parse.
-                     // A safer bet for now is relying on the robust try-catch below.
+                     // Check scsi0, virtio0, ide0, sata0
+                     $diskString = $currentConfig['scsi0'] ?? $currentConfig['virtio0'] ?? $currentConfig['ide0'] ?? $currentConfig['sata0'] ?? null;
+                     
+                     if ($diskString && preg_match('/size=(\d+(\.\d+)?[TGMK]?)/', $diskString, $matches)) {
+                         $sizeStr = $matches[1];
+                         $unit = substr($sizeStr, -1);
+                         $value = (float) substr($sizeStr, 0, -1);
+                         if (is_numeric($unit)) {
+                             $value = (float) $sizeStr; // No unit, assuming bytes? Proxmox usually gives G/M/K
+                             $unit = 'B'; 
+                         }
+                         
+                         $bytes = match(strtoupper($unit)) {
+                             'T' => $value * 1024 * 1024 * 1024 * 1024,
+                             'G' => $value * 1024 * 1024 * 1024,
+                             'M' => $value * 1024 * 1024,
+                             'K' => $value * 1024,
+                             default => $value,
+                         };
+                         
+                         // Allow small variance (1MB) due to rounding
+                         if ($bytes >= ($this->server->disk - 1048576)) {
+                             Log::info("[Rebuild] Server {$this->server->id}: Disk already at requested size ({$sizeStr}). Skipping resize.");
+                             goto after_resize;
+                         }
+                     }
                  } catch (\Exception $e) {
-                     // Ignore config fetch error
+                     Log::warning("[Rebuild] Failed to parse disk size: " . $e->getMessage());
                  }
 
                  // Wait for transient file locks to clear after hardware update
-                 sleep(15); 
+                 sleep(15);
                  
                  // Wait for unlock after potential hardware update above
                  if (!$serverRepo->waitUntilUnlocked(40, 2)) {
@@ -87,19 +107,32 @@ class ConfigureVmJob implements ShouldQueue
 
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
                  
-                 try {
-                     $configRepo->resizeDisk('scsi0', $this->server->disk);
-                 } catch (\Exception $e) {
-                     $msg = $e->getMessage();
-                     // If it says "disk already at that size" or similar, we are good.
-                     // If it's a lock timeout, we might need to retry or verify size.
-                     Log::warning("[Rebuild] Resize warning: " . $msg);
-                     
-                     // Verify if it actually failed critically?
-                     // For now, we logging as warning and allowing to proceed might be safer if it's just a "size match" error.
-                     // But if it's a lock error, we want to know.
-                     if (str_contains($msg, 'timeout') || str_contains($msg, 'locked')) {
-                         throw $e;
+                 // Retry loop for resize
+                 $attempts = 0;
+                 $maxResizeAttempts = 3;
+                 
+                 while ($attempts < $maxResizeAttempts) {
+                     try {
+                         $configRepo->resizeDisk('scsi0', $this->server->disk);
+                         break; // Success
+                     } catch (\Exception $e) {
+                         $attempts++;
+                         $msg = $e->getMessage();
+                         
+                         // If "disk already at that size", success
+                         if (str_contains($msg, 'smaller than') || str_contains($msg, 'size match')) {
+                             break;
+                         }
+                         
+                         if ($attempts >= $maxResizeAttempts) {
+                             if (str_contains($msg, 'timeout') || str_contains($msg, 'locked')) {
+                                 throw $e;
+                             }
+                             Log::warning("[Rebuild] Resize failed but proceeding: " . $msg);
+                         } else {
+                             Log::warning("[Rebuild] Resize attempt {$attempts} failed (Lock/Timeout), retrying in 15s...");
+                             sleep(15);
+                         }
                      }
                  }
                  
@@ -109,6 +142,8 @@ class ConfigureVmJob implements ShouldQueue
                       throw new \Exception("VM locked timeout after resize.");
                  }
             }
+            
+            after_resize:
 
             // 1. Configure User/Password
             $config = [];
