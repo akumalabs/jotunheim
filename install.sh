@@ -139,14 +139,62 @@ if [ ! -f .env ]; then
     # Generate app key
     php artisan key:generate
 
-    # Generate secure database password (alphanumeric only to avoid sed issues)
+    # Generate secure database password (alphanumeric only)
     DB_PASSWORD=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 24)
 
-    # Configure .env with dedicated database user
-    sed -i "s/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/" .env
-    sed -i "s/DB_DATABASE=jotunheim/DB_DATABASE=jotunheim/" .env
-    sed -i "s/DB_USERNAME=jotunheim/DB_USERNAME=jotunheim/" .env
-    sed -i "s/DB_PASSWORD=/DB_PASSWORD=$DB_PASSWORD/" .env
+    # Configure .env with dedicated database user using cat/heredoc for reliability
+    cat > .env <<ENVEOF
+APP_NAME=Jotunheim
+APP_ENV=production
+APP_KEY=$(php artisan key:generate --show)
+APP_DEBUG=false
+APP_URL=http://localhost
+
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=jotunheim
+DB_USERNAME=jotunheim
+DB_PASSWORD=$DB_PASSWORD
+
+BROADCAST_DRIVER=log
+CACHE_STORE=redis
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+# Application Settings
+BACKUP_MAX_BACKUPS=5
+SERVER_DEFAULT_PASSWORD_LENGTH=16
+SERVER_MAX_PASSWORD_LENGTH=72
+SERVER_MIN_PASSWORD_LENGTH=8
+
+# Proxmox Settings
+PROXMOX_VERIFY_SSL=true
+PROXMOX_API_TIMEOUT=30
+PROXMOX_CONNECT_TIMEOUT=5
+
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="\${APP_NAME}"
+ENVEOF
 
     # Display password for reference
     echo -e "${YELLOW}Database password: $DB_PASSWORD${NC}"
