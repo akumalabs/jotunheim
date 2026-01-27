@@ -98,7 +98,9 @@ class ConfigureVmJob implements ShouldQueue
                  }
 
                  // Wait for transient file locks to clear after hardware update
-                 sleep(2);
+                 if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                      throw new \Exception("VM locked timeout after resource config.");
+                 }
                  
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
                  
@@ -145,6 +147,12 @@ class ConfigureVmJob implements ShouldQueue
             }
             
             after_resize:
+            
+            // Ensure VM is unlocked before proceeding to Cloud-Init
+            // This catches the lock from Resource Config (if resize skipped) or Resize (double check)
+            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                 throw new \Exception("VM locked timeout before Cloud-Init.");
+            }
 
             // 1. Configure User/Password
             $config = [];
