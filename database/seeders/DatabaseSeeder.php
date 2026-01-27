@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'proxmox-01',
             'fqdn' => 'proxmox.example.com',
             'port' => 8006,
-            'token_id' => 'root@pam!midgard',
+            'token_id' => 'root@pam!jotunheim',
             'token_secret' => 'your-token-secret-here',
             'memory' => 68719476736, // 64GB
             'disk' => 1099511627776, // 1TB
