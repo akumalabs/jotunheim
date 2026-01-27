@@ -61,10 +61,11 @@ class ConfigureVmJob implements ShouldQueue
                 'cores' => $this->server->cpu,
                 'memory' => (int) ($this->server->memory / 1024 / 1024), // Bytes to MB
                 'onboot' => 1,
+                'onboot' => 1,
             ]);
-
-            // Resize Disk (Defaulting to scsi0)
             if ($this->server->disk > 0) {
+                 // Wait for transient file locks to clear after hardware update
+                 sleep(10);
                  // Wait for unlock after potential hardware update above
                  if (!$serverRepo->waitUntilUnlocked(30, 1)) {
                       throw new \Exception("VM locked timeout before disk resize.");
