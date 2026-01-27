@@ -79,6 +79,11 @@ class CreateServerJob implements ShouldQueue
                 'onboot' => 1,
             ]);
 
+            // Wait for lock to clear after resource update
+            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                 throw new \Exception("VM locked timeout after resource config.");
+            }
+
             // 4. Resize Disk
             logger()->info("Resizing disk...");
             
@@ -131,6 +136,12 @@ class CreateServerJob implements ShouldQueue
                         throw $e;
                     }
                 }
+            }
+            
+            // Ensure VM is unlocked before proceeding to Cloud-Init
+            // This catches the lock from Resource Config (if resize skipped) or Resize (double check)
+            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                 throw new \Exception("VM locked timeout before Cloud-Init.");
             }
 
             // 5. Cloud-Init Configuration
