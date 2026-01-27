@@ -2,19 +2,14 @@
 
 namespace App\Http\Controllers\Api\Client;
 
+use App\Jobs\Server\ResizeServerJob;
 use App\Http\Controllers\Controller;
 use App\Models\Server;
-use App\Services\Servers\ServerResizeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ServerResizeController extends Controller
 {
-    public function __construct(
-        private ServerResizeService $resizeService
-    ) {}
-
     /**
      * Resize server resources (CPU, memory, disk).
      */
@@ -37,21 +32,11 @@ class ServerResizeController extends Controller
             'disk' => ['sometimes', 'integer', 'min:10', 'max:10240'],
         ]);
 
-        try {
-            $this->resizeService->resize($server, $validated);
+        ResizeServerJob::dispatch($server, $validated);
 
-            return response()->json([
-                'message' => 'Server resize initiated',
-            ]);
-        } catch (\Exception $e) {
-            Log::error("Server resize failed for {$server->uuid}: ".$e->getMessage(), [
-                'validated' => $validated,
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to resize server',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Server resize initiated',
+            'status' => 'processing',
+        ]);
     }
 }
