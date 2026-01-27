@@ -209,6 +209,36 @@ ENVEOF
             FLUSH PRIVILEGES;
         " 2>/dev/null; then
             echo "Database and user created successfully!"
+            echo "Verifying connection with new credentials..."
+            if command -v mysql &> /dev/null; then
+                if mysql -ujotunheim -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                    echo -e "${GREEN}✓ Database connection verified${NC}"
+                else
+                    echo -e "${RED}✗ Connection failed! Password mismatch detected.${NC}"
+                    echo -e "${YELLOW}Current DB_PASSWORD in .env: $DB_PASSWORD${NC}"
+                    echo -e "${YELLOW}Fixing by recreating user...${NC}"
+                    mysql -uroot -pjotunheim -e "
+                        DROP USER IF EXISTS 'jotunheim'@'localhost';
+                        CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+                        GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+                        FLUSH PRIVILEGES;
+                    " 2>/dev/null && echo -e "${GREEN}✓ User recreated successfully${NC}"
+                fi
+            elif command -v mariadb &> /dev/null; then
+                if mariadb -ujotunheim -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                    echo -e "${GREEN}✓ Database connection verified${NC}"
+                else
+                    echo -e "${RED}✗ Connection failed! Password mismatch detected.${NC}"
+                    echo -e "${YELLOW}Current DB_PASSWORD in .env: $DB_PASSWORD${NC}"
+                    echo -e "${YELLOW}Fixing by recreating user...${NC}"
+                    mariadb -uroot -pjotunheim -e "
+                        DROP USER IF EXISTS 'jotunheim'@'localhost';
+                        CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+                        GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+                        FLUSH PRIVILEGES;
+                    " 2>/dev/null && echo -e "${GREEN}✓ User recreated successfully${NC}"
+                fi
+            fi
         else
             echo "WARNING: Failed to create database automatically."
             echo "Please run manually:"
@@ -227,6 +257,20 @@ ENVEOF
             FLUSH PRIVILEGES;
         " 2>/dev/null; then
             echo "Database and user created successfully!"
+            echo "Verifying connection with new credentials..."
+            if mariadb -ujotunheim -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null; then
+                echo -e "${GREEN}✓ Database connection verified${NC}"
+            else
+                echo -e "${RED}✗ Connection failed! Password mismatch detected.${NC}"
+                echo -e "${YELLOW}Current DB_PASSWORD in .env: $DB_PASSWORD${NC}"
+                echo -e "${YELLOW}Fixing by recreating user...${NC}"
+                mariadb -uroot -pjotunheim -e "
+                    DROP USER IF EXISTS 'jotunheim'@'localhost';
+                    CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+                    GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+                    FLUSH PRIVILEGES;
+                " 2>/dev/null && echo -e "${GREEN}✓ User recreated successfully${NC}"
+            fi
         else
             echo "WARNING: Failed to create database automatically."
             echo "Please run manually:"
