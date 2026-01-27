@@ -98,7 +98,7 @@ class ConfigureVmJob implements ShouldQueue
                  }
 
                  // Wait for transient file locks to clear after hardware update
-                 sleep(10);
+                 sleep(2);
                  
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
                  

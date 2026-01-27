@@ -81,12 +81,56 @@ class CreateServerJob implements ShouldQueue
 
             // 4. Resize Disk
             logger()->info("Resizing disk...");
-            // Defaulting to scsi0, commonly used
-            $configRepo->resizeDisk('scsi0', $this->server->disk); // Takes bytes
+            
+            // Smart Resize: Check if already correct size
+            $shouldResize = true;
+            try {
+                 $currentConfig = $configRepo->get();
+                 $diskString = $currentConfig['scsi0'] ?? $currentConfig['virtio0'] ?? $currentConfig['ide0'] ?? $currentConfig['sata0'] ?? null;
+                 
+                 if ($diskString && preg_match('/size=(\d+(\.\d+)?[TGMK]?)/', $diskString, $matches)) {
+                     $sizeStr = $matches[1];
+                     $unit = substr($sizeStr, -1);
+                     $value = (float) substr($sizeStr, 0, -1);
+                     if (is_numeric($unit)) {
+                         $value = (float) $sizeStr; 
+                         $unit = 'B'; 
+                     }
+                     
+                     $bytes = match(strtoupper($unit)) {
+                         'T' => $value * 1024 * 1024 * 1024 * 1024,
+                         'G' => $value * 1024 * 1024 * 1024,
+                         'M' => $value * 1024 * 1024,
+                         'K' => $value * 1024,
+                         default => $value,
+                     };
+                     
+                     if ($bytes >= ($this->server->disk - 1048576)) {
+                         logger()->info("Disk already at requested size ({$sizeStr}). Skipping resize.");
+                         $shouldResize = false;
+                     }
+                 }
+            } catch (\Exception $e) {
+                 logger()->warning("Failed to parse disk size: " . $e->getMessage());
+            }
 
-            // Wait for Unlock after Resize (Fix Race Condition)
-            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
-                 throw new \Exception("VM locked timeout after resize.");
+            if ($shouldResize) {
+                // Defaulting to scsi0, commonly used
+                try {
+                    $configRepo->resizeDisk('scsi0', $this->server->disk); 
+                    
+                    // Wait for Unlock after Resize (Fix Race Condition)
+                    if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+                         throw new \Exception("VM locked timeout after resize.");
+                    }
+                } catch (\Exception $e) {
+                    // Ignore "size match" errors if they slip through
+                    if (str_contains($e->getMessage(), 'smaller than') || str_contains($e->getMessage(), 'size match')) {
+                        logger()->info("Resize skipped by PVE (size match).");
+                    } else {
+                        throw $e;
+                    }
+                }
             }
 
             // 5. Cloud-Init Configuration
