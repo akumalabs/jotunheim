@@ -21,24 +21,10 @@ class ProxmoxConfigRepository extends ProxmoxRepository
 
     /**
      * Update VM configuration
-     *
-     * @param  array  $params  Configuration parameters
      */
     public function update(array $params): string
     {
         $response = $this->client->post($this->vmPath('config'), $params);
-
-        return is_string($response) ? $response : ($response['data'] ?? '');
-    }
-
-    /**
-     * Update VM configuration via PUT (Used for updates like Name that support spaces)
-     *
-     * @param  array  $params  Configuration parameters
-     */
-    public function updateViaPut(array $params): string
-    {
-        $response = $this->client->put($this->vmPath('config'), $params);
 
         return is_string($response) ? $response : ($response['data'] ?? '');
     }
@@ -59,7 +45,6 @@ class ProxmoxConfigRepository extends ProxmoxRepository
      */
     public function setMemory(int $bytes): string
     {
-        // Proxmox expects memory in MB
         $mb = (int) floor($bytes / 1048576);
 
         return $this->update([
@@ -68,22 +53,19 @@ class ProxmoxConfigRepository extends ProxmoxRepository
     }
 
     /**
-     * Resize disk
-     *
-     * @param  string  $disk  Disk identifier (e.g., 'scsi0', 'virtio0')
-     * @param  int  $bytes  New size in bytes
+     * Resize disk - returns immediately without waiting
      */
     public function resizeDisk(string $disk, int $bytes): string
     {
-        // Proxmox expects size in kibibytes for resize
         $kib = (int) round($bytes / 1024);
 
-        $response = $this->client->put($this->vmPath('resize'), [
-            'disk' => $disk,
-            'size' => "{$kib}K",
-        ]);
+        $response = $this->client->resizeDisk(
+            $this->requireServer()->vmid,
+            $disk,
+            $bytes
+        );
 
-        return is_string($response) ? $response : ($response['data'] ?? '');
+        return $response['data'] ?? '';
     }
 
     /**

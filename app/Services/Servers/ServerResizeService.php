@@ -4,7 +4,6 @@ namespace App\Services\Servers;
 
 use App\Models\Server;
 use App\Repositories\Proxmox\Server\ProxmoxConfigRepository;
-use App\Repositories\Proxmox\Server\ProxmoxServerRepository;
 use App\Services\Proxmox\ProxmoxApiClient;
 use App\Services\Proxmox\ProxmoxApiException;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +23,6 @@ class ServerResizeService
             Log::info("Starting resize for server {$server->uuid}");
 
             $configRepo = (new ProxmoxConfigRepository($this->client))->setServer($server);
-            $serverRepo = (new ProxmoxServerRepository($this->client))->setServer($server);
 
             $changes = [];
 
@@ -50,6 +48,7 @@ class ServerResizeService
 
                 $newDiskSize = ceil($disk / 1073741824);
 
+                // Fire resize operation - returns immediately without waiting
                 $configRepo->resizeDisk('scsi0', $newDiskSize);
                 $changes['disk'] = $options['disk'];
             }

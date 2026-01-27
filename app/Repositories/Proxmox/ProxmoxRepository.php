@@ -5,6 +5,7 @@ namespace App\Repositories\Proxmox;
 use App\Models\Node;
 use App\Models\Server;
 use App\Services\Proxmox\ProxmoxApiClient;
+use Webmozart\Assert\Assert;
 
 /**
  * Provides common functionality for Proxmox API interactions
@@ -23,53 +24,92 @@ abstract class ProxmoxRepository
     }
 
     /**
-     * Set the node context
+     * Set node context
      */
     public function setNode(Node $node): static
     {
         $this->node = $node;
-        // Client already has node from constructor
 
         return $this;
     }
 
     /**
-     * Set the server context (automatically sets node)
+     * Set server context (automatically sets node)
      */
     public function setServer(Server $server): static
     {
         $this->server = $server;
         $this->node = $server->node;
-        // Client already has node from constructor
 
         return $this;
     }
 
     /**
-     * Get the VM path for API calls
+     * Get server instance with assertion
+     */
+    protected function requireServer(): Server
+    {
+        Assert::isInstanceOf(
+            $this->server,
+            Server::class,
+            'Server is not set or invalid.'
+        );
+
+        return $this->server;
+    }
+
+    /**
+     * Get node instance with assertion
+     */
+    protected function requireNode(): Node
+    {
+        Assert::isInstanceOf(
+            $this->node,
+            Node::class,
+            'Node is not set or invalid.'
+        );
+
+        return $this->node;
+    }
+
+    /**
+     * Get HTTP client
+     */
+    protected function getClient(): ProxmoxApiClient
+    {
+        return $this->client;
+    }
+
+    /**
+     * Get VM path for API calls
      */
     protected function vmPath(string $endpoint = ''): string
     {
-        if (! $this->server) {
-            throw new \RuntimeException('Server context not set');
-        }
+        $server = $this->requireServer();
+        $node = $this->requireNode();
 
-        $base = "/nodes/{$this->node->cluster}/qemu/{$this->server->vmid}";
+        $base = "/nodes/{$node->cluster}/qemu/{$server->vmid}";
 
         return $endpoint ? "{$base}/{$endpoint}" : $base;
     }
 
     /**
-     * Get the node path for API calls
+     * Get node path for API calls
      */
     protected function nodePath(string $endpoint = ''): string
     {
-        if (! $this->node) {
-            throw new \RuntimeException('Node context not set');
-        }
+        $node = $this->requireNode();
 
-        $base = "/nodes/{$this->node->cluster}";
+        $base = "/nodes/{$node->cluster}";
 
         return $endpoint ? "{$base}/{$endpoint}" : $base;
+    }
+
+    /**
+     * Extract data from API response
+     */
+    protected function getData(array $response): mixed
+    {
+        return $response['data'] ?? $response;
     }
 }

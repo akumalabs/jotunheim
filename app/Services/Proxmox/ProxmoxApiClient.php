@@ -21,20 +21,23 @@ class ProxmoxApiClient
 
     /**
      * Create HTTP client with Proxmox authentication.
+     * Uses REST API v2 format with JSON content type.
      */
     protected function createClient(): PendingRequest
     {
         $verify = env('PROXMOX_VERIFY_SSL', true);
 
         return Http::baseUrl($this->node->getApiUrl())
-            ->asForm() // Proxmox expects form-data, not JSON
             ->withHeaders([
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
                 'Authorization' => "PVEAPIToken={$this->node->token_id}={$this->node->token_secret}",
             ])
             ->withOptions([
                 'verify' => $verify,
-            ])
-            ->timeout(600);
+                'timeout' => env('PROXMOX_API_TIMEOUT', 30),
+                'connect_timeout' => env('PROXMOX_CONNECT_TIMEOUT', 5),
+            ]);
     }
 
     /**
@@ -292,18 +295,20 @@ class ProxmoxApiClient
 
     /**
      * Resize a VM disk.
+     * Returns immediately without waiting for task completion (fire-and-forget).
      */
-    public function resizeDisk(int $vmid, string $disk, int $sizeBytes, ?string $nodeName = null): array|string
+    public function resizeDisk(int $vmid, string $disk, int $sizeBytes, ?string $nodeName = null): array
     {
         $nodeName = $nodeName ?? $this->getProxmoxNodeName();
 
-        // Convert bytes to kibibytes for Proxmox
         $kibibytes = (int) floor($sizeBytes / 1024);
 
-        return $this->put("/nodes/{$nodeName}/qemu/{$vmid}/resize", [
+        $response = $this->put("/nodes/{$nodeName}/qemu/{$vmid}/resize", [
             'disk' => $disk,
             'size' => "{$kibibytes}K",
         ]);
+
+        return $response['data'] ?? [];
     }
 
     // =====================

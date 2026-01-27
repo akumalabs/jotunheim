@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Enums\Rebuild\RebuildStep;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
+use App\Repositories\Proxmox\Server\ProxmoxConfigRepository;
 use App\Models\Node;
 use App\Models\Server;
 use App\Models\User;
@@ -919,6 +920,7 @@ class ServerController extends Controller
 
         try {
             $client = new ProxmoxApiClient($server->node);
+            $configRepo = (new ProxmoxConfigRepository($client))->setServer($server);
             $updateConfig = [];
 
             // Update Proxmox VM config
@@ -930,17 +932,13 @@ class ServerController extends Controller
             }
 
             if (!empty($updateConfig)) {
-                $client->updateVMConfig((int) $server->vmid, $updateConfig);
+                $configRepo->update($updateConfig);
             }
 
             // Handle disk resize (Proxmox only allows increases)
             if (isset($validated['disk']) && $validated['disk'] > $server->disk) {
-                $increaseGB = (int) ceil(($validated['disk'] - $server->disk) / 1024 / 1024 / 1024);
-                // Proxmox expects "+XG" format for relative increase
-                $client->put("/nodes/{$server->node->cluster}/qemu/{$server->vmid}/resize", [
-                    'disk' => 'scsi0',
-                    'size' => "+{$increaseGB}G"
-                ]);
+                $newDiskSize = $validated['disk'];
+                $configRepo->resizeDisk('scsi0', $newDiskSize);
             }
 
             // Update database
