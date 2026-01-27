@@ -139,31 +139,56 @@ if [ ! -f .env ]; then
     # Generate app key
     php artisan key:generate
 
-    # Configure .env
+    # Generate secure database password
+    DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+
+    # Configure .env with dedicated database user
     sed -i "s/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/" .env
     sed -i "s/DB_DATABASE=jotunheim/DB_DATABASE=jotunheim/" .env
-    sed -i "s/DB_USERNAME=jotunheim/DB_USERNAME=root/" .env
-    sed -i "s/DB_PASSWORD=/DB_PASSWORD=jotunheim/" .env
+    sed -i "s/DB_USERNAME=jotunheim/DB_USERNAME=jotunheim/" .env
+    sed -i "s/DB_PASSWORD=/DB_PASSWORD=$DB_PASSWORD/" .env
 
-    # Create database
-    echo "Creating database..."
+    # Create database and user
+    echo "Setting up database..."
     if command -v mysql &> /dev/null; then
-        if mysql -uroot -pjotunheim -e "CREATE DATABASE IF NOT EXISTS jotunheim;" 2>/dev/null; then
-            echo "Database created successfully!"
+        if mysql -uroot -pjotunheim -e "
+            CREATE DATABASE IF NOT EXISTS jotunheim;
+            CREATE USER IF NOT EXISTS 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+            GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+            FLUSH PRIVILEGES;
+        " 2>/dev/null; then
+            echo "Database and user created successfully!"
         else
             echo "WARNING: Failed to create database automatically."
-            echo "Please run: mysql -uroot -pjotunheim -e 'CREATE DATABASE IF NOT EXISTS jotunheim;'"
+            echo "Please run manually:"
+            echo "  mysql -uroot -pjotunheim"
+            echo "  CREATE DATABASE jotunheim;"
+            echo "  CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_password';"
+            echo "  GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
+            echo "  FLUSH PRIVILEGES;"
+            echo "Then update .env with the correct DB_PASSWORD"
         fi
     elif command -v mariadb &> /dev/null; then
-        if mariadb -uroot -pjotunheim -e "CREATE DATABASE IF NOT EXISTS jotunheim;" 2>/dev/null; then
-            echo "Database created successfully!"
+        if mariadb -uroot -pjotunheim -e "
+            CREATE DATABASE IF NOT EXISTS jotunheim;
+            CREATE USER IF NOT EXISTS 'jotunheim'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+            GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';
+            FLUSH PRIVILEGES;
+        " 2>/dev/null; then
+            echo "Database and user created successfully!"
         else
             echo "WARNING: Failed to create database automatically."
-            echo "Please run: mariadb -uroot -pjotunheim -e 'CREATE DATABASE IF NOT EXISTS jotunheim;'"
+            echo "Please run manually:"
+            echo "  mariadb -uroot -pjotunheim"
+            echo "  CREATE DATABASE jotunheim;"
+            echo "  CREATE USER 'jotunheim'@'localhost' IDENTIFIED BY 'your_password';"
+            echo "  GRANT ALL PRIVILEGES ON jotunheim.* TO 'jotunheim'@'localhost';"
+            echo "  FLUSH PRIVILEGES;"
+            echo "Then update .env with the correct DB_PASSWORD"
         fi
     else
         echo "WARNING: Neither mysql nor mariadb command found."
-        echo "Please create the database manually."
+        echo "Please create database and user manually, then update .env"
     fi
 
     # Run migrations
