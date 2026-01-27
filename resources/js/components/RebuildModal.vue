@@ -94,7 +94,7 @@
                         </span>
 
                         <!-- "Processing" indicator for all active steps -->
-                        <span v-else-if="index === currentStep" class="text-xs text-primary-400 animate-pulse ml-auto">
+                        <span v-if="index === currentStep" class="text-xs text-primary-400 animate-pulse ml-auto">
                             Processing...
                         </span>
                     </div>
