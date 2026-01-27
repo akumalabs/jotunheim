@@ -11,6 +11,7 @@ use App\Repositories\Proxmox\Server\ProxmoxConfigRepository;
 use App\Repositories\Proxmox\Server\ProxmoxPowerRepository;
 use App\Repositories\Proxmox\Server\ProxmoxServerRepository;
 use App\Services\Proxmox\ProxmoxApiClient;
+use App\Services\Proxmox\ProxmoxApiException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,8 +24,8 @@ class ConfigureVmJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
-    public int $timeout = 120;
+    public int $tries = 5;
+    public int $timeout = 300;
 
     public function __construct(
         protected Server $server,
@@ -41,6 +42,7 @@ class ConfigureVmJob implements ShouldQueue
         $client = new ProxmoxApiClient($this->server->node);
         $configRepo = (new ProxmoxConfigRepository($client))->setServer($this->server);
         $cloudinitRepo = (new ProxmoxCloudinitRepository($client))->setServer($this->server);
+        $serverRepo = (new ProxmoxServerRepository($client))->setServer($this->server);
 
         try {
             $configRepo->update([
@@ -49,10 +51,20 @@ class ConfigureVmJob implements ShouldQueue
                 'name' => $this->server->hostname,
             ]);
 
-            $client->resizeDisk($this->server->vmid, 'scsi0', $this->server->disk);
+            $this->performWithRetry(
+                $serverRepo,
+                fn() => $client->resizeDisk($this->server->vmid, 'scsi0', $this->server->disk),
+                'resizeDisk',
+                3
+            );
 
             if ($this->password) {
-                $cloudinitRepo->setPassword($this->password);
+                $this->performWithRetry(
+                    $serverRepo,
+                    fn() => $cloudinitRepo->setPassword($this->password),
+                    'setPassword',
+                    5
+                );
             }
 
             if (! empty($this->addressIds)) {
@@ -63,7 +75,12 @@ class ConfigureVmJob implements ShouldQueue
                 $this->configureSshKeys($cloudinitRepo);
             }
 
-            $cloudinitRepo->regenerate();
+            $this->performWithRetry(
+                $serverRepo,
+                fn() => $cloudinitRepo->regenerate(),
+                'regenerate',
+                3
+            );
 
             Log::info("[Rebuild] Server {$this->server->id}: VM {$this->server->vmid} configuration complete");
 
@@ -102,5 +119,41 @@ class ConfigureVmJob implements ShouldQueue
         $cloudinitRepo->configure([
             'ssh_keys' => [implode("\n", $sshKeys->pluck('public_key')->toArray())],
         ]);
+    }
+
+    protected function performWithRetry(
+        ProxmoxServerRepository $serverRepo,
+        callable $operation,
+        string $operationName,
+        int $maxAttempts = 5
+    ): void {
+        $attempts = 0;
+        $backoffs = [5, 10, 15, 20, 30, 40, 50, 60, 60, 60];
+
+        while ($attempts < $maxAttempts) {
+            try {
+                if (!$serverRepo->waitUntilUnlocked(30, 2)) {
+                    throw new \Exception("VM locked timeout before {$operationName}");
+                }
+
+                $operation();
+                return;
+            } catch (ProxmoxApiException $e) {
+                $attempts++;
+                $msg = $e->getMessage();
+
+                if (str_contains($msg, 'lock') || str_contains($msg, 'timeout')) {
+                    if ($attempts >= $maxAttempts) {
+                        throw new \Exception("{$operationName} failed after {$maxAttempts} attempts: " . $msg, 0, $e);
+                    }
+
+                    $sleep = $backoffs[$attempts - 1] ?? 60;
+                    Log::warning("[Rebuild] Server {$this->server->id}: {$operationName} failed (Lock/Timeout), retry {$attempts}/{$maxAttempts} in {$sleep}s...");
+                    sleep($sleep);
+                } else {
+                    throw $e;
+                }
+            }
+        }
     }
 }

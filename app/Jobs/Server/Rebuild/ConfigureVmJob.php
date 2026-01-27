@@ -6,6 +6,7 @@ use App\Models\Deployment;
 use App\Models\DeploymentStep;
 use App\Models\Server;
 use App\Services\Proxmox\ProxmoxApiClient;
+use App\Services\Proxmox\ProxmoxApiException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -189,9 +190,35 @@ class ConfigureVmJob implements ShouldQueue
                  }
             }
             
-            // Apply Configuration
+            // Apply Configuration with retry logic
             if (!empty($config)) {
-                $cloudInitRepo->configure($config);
+                $ciAttempts = 0;
+                $maxCiAttempts = 10;
+                $ciBackoff = [5, 10, 15, 20, 30, 40, 50, 60, 60, 60];
+
+                while ($ciAttempts < $maxCiAttempts) {
+                    try {
+                        $cloudInitRepo->configure($config);
+                        break;
+                    } catch (ProxmoxApiException $e) {
+                        $ciAttempts++;
+                        $msg = $e->getMessage();
+
+                        if (str_contains($msg, 'lock') || str_contains($msg, 'timeout')) {
+                            if ($ciAttempts >= $maxCiAttempts) {
+                                throw new \Exception("Cloud-Init config failed after {$maxCiAttempts} attempts: " . $msg, 0, $e);
+                            }
+
+                            $sleep = $ciBackoff[$ciAttempts - 1] ?? 60;
+                            Log::warning("[Rebuild] Server {$this->server->id}: Cloud-Init config failed (Lock/Timeout), retry {$ciAttempts}/{$maxCiAttempts} in {$sleep}s...");
+                            sleep($sleep);
+
+                            $serverRepo->waitUntilUnlocked(30, 2);
+                        } else {
+                            throw $e;
+                        }
+                    }
+                }
             }
 
             Log::info("[Rebuild] Server {$this->server->id}: VM configured successfully");

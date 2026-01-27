@@ -10,6 +10,7 @@ use App\Repositories\Proxmox\Server\ProxmoxConfigRepository;
 use App\Repositories\Proxmox\Server\ProxmoxPowerRepository;
 use App\Repositories\Proxmox\Server\ProxmoxServerRepository;
 use App\Services\Proxmox\ProxmoxApiClient;
+use App\Services\Proxmox\ProxmoxApiException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -184,36 +185,59 @@ class CreateServerJob implements ShouldQueue
             // Retry Loop for Cloud-Init Configuration
             // This step is critical and often hits lock contention.
             $ciAttempts = 0;
-            $maxCiAttempts = 5;
-            $ciBackoff = [10, 20, 30, 40, 60];
+            $maxCiAttempts = 10;
+            $ciBackoff = [5, 10, 15, 20, 30, 40, 50, 60, 60, 60];
 
             while ($ciAttempts < $maxCiAttempts) {
                 try {
                      $cloudinitRepo->configure($ciConfig);
                      break; // Success
-                } catch (\Exception $e) {
+                } catch (ProxmoxApiException $e) {
                      $ciAttempts++;
                      $msg = $e->getMessage();
                      
-                     if ($ciAttempts >= $maxCiAttempts) {
-                         throw $e;
-                     }
-                     
                      if (str_contains($msg, 'lock') || str_contains($msg, 'timeout')) {
-                         $sleep = $ciBackoff[$ciAttempts - 1] ?? 10;
-                         logger()->warning("Cloud-Init config failed (Lock/Timeout), retrying in {$sleep}s...");
+                         if ($ciAttempts >= $maxCiAttempts) {
+                             throw new \Exception("Cloud-Init config failed after {$maxCiAttempts} attempts: " . $msg, 0, $e);
+                         }
+                         $sleep = $ciBackoff[$ciAttempts - 1] ?? 60;
+                         logger()->warning("Cloud-Init config failed (Lock/Timeout), retry {$ciAttempts}/{$maxCiAttempts} in {$sleep}s...");
                          sleep($sleep);
                          
                          // Re-check unlock before retry
-                         $serverRepo->waitUntilUnlocked(60, 2);
+                         $serverRepo->waitUntilUnlocked(30, 2);
                      } else {
                          throw $e; // Fatal error if not lock related
                      }
                 }
             }
 
-            // Force regenerate cloud-init image to ensure changes apply
-            $cloudinitRepo->regenerate();
+            // Force regenerate cloud-init image to ensure changes apply (with retry)
+            $regenAttempts = 0;
+            $maxRegenAttempts = 5;
+            
+            while ($regenAttempts < $maxRegenAttempts) {
+                try {
+                    $cloudinitRepo->regenerate();
+                    break;
+                } catch (ProxmoxApiException $e) {
+                    $regenAttempts++;
+                    $msg = $e->getMessage();
+                    
+                    if (str_contains($msg, 'lock') || str_contains($msg, 'timeout')) {
+                        if ($regenAttempts >= $maxRegenAttempts) {
+                            logger()->warning("Cloud-Init regenerate failed after {$maxRegenAttempts} attempts, proceeding anyway");
+                            break;
+                        }
+                        $sleep = 10;
+                        logger()->warning("Cloud-Init regenerate failed (Lock/Timeout), retry {$regenAttempts}/{$maxRegenAttempts} in {$sleep}s...");
+                        sleep($sleep);
+                        $serverRepo->waitUntilUnlocked(30, 2);
+                    } else {
+                        throw $e;
+                    }
+                }
+            }
 
             // 6. Start VM
             logger()->info("Starting VM...");
