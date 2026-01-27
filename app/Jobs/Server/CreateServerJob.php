@@ -138,15 +138,16 @@ class CreateServerJob implements ShouldQueue
                 }
             }
             
-            // Ensure VM is unlocked before proceeding to Cloud-Init
+            // 60 attempts * 2s = 120s => Increased to 300 attempts * 2s = 600s
             // This catches the lock from Resource Config (if resize skipped) or Resize (double check)
-            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+            if (!$serverRepo->waitUntilUnlocked(300, 2)) {
                  throw new \Exception("VM locked timeout before Cloud-Init.");
             }
 
             // 5. Cloud-Init Configuration
             logger()->info("Applying Cloud-Init...");
             
+            // ... (setup ciConfig code unchanged) ...
             // Detect OS from template name for appropriate default user  
             $template = \App\Models\Template::where('vmid', $this->templateVmid)->first();
             $isWindows = $template && (
@@ -167,8 +168,6 @@ class CreateServerJob implements ShouldQueue
 
             // SSH Keys (User specific keys + provided keys)
             if (!empty($this->sshKeys) || $this->server->user) {
-                // If specific keys passed, use them. Otherwise, could fetch from user profile if we had that logic.
-                // For now, using passed keys.
                  $ciConfig['ssh_keys'] = $this->sshKeys;
             }
             
@@ -182,7 +181,36 @@ class CreateServerJob implements ShouldQueue
                  logger()->warning("No primary address assigned. IP configuration skipped.");
             }
 
-            $cloudinitRepo->configure($ciConfig);
+            // Retry Loop for Cloud-Init Configuration
+            // This step is critical and often hits lock contention.
+            $ciAttempts = 0;
+            $maxCiAttempts = 5;
+            $ciBackoff = [10, 20, 30, 40, 60];
+
+            while ($ciAttempts < $maxCiAttempts) {
+                try {
+                     $cloudinitRepo->configure($ciConfig);
+                     break; // Success
+                } catch (\Exception $e) {
+                     $ciAttempts++;
+                     $msg = $e->getMessage();
+                     
+                     if ($ciAttempts >= $maxCiAttempts) {
+                         throw $e;
+                     }
+                     
+                     if (str_contains($msg, 'lock') || str_contains($msg, 'timeout')) {
+                         $sleep = $ciBackoff[$ciAttempts - 1] ?? 10;
+                         logger()->warning("Cloud-Init config failed (Lock/Timeout), retrying in {$sleep}s...");
+                         sleep($sleep);
+                         
+                         // Re-check unlock before retry
+                         $serverRepo->waitUntilUnlocked(60, 2);
+                     } else {
+                         throw $e; // Fatal error if not lock related
+                     }
+                }
+            }
 
             // Force regenerate cloud-init image to ensure changes apply
             $cloudinitRepo->regenerate();
