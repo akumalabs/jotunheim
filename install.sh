@@ -139,8 +139,8 @@ if [ ! -f .env ]; then
     # Generate app key
     php artisan key:generate
 
-    # Generate secure database password (alphanumeric only)
-    DB_PASSWORD=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 24)
+    # Use hardcoded database password
+    DB_PASSWORD="Rdp12345!"
 
     # Configure .env with dedicated database user using cat/heredoc for reliability
     cat > .env <<ENVEOF

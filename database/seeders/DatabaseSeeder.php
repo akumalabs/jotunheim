@@ -16,30 +16,36 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin user with default password
-        $admin = User::create([
-            'name' => 'Admin',
-            'email' => 'admin@jotunheim.local',
-            'password' => Hash::make('Password123!'),
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
+        // Create admin user with default password (skip if exists)
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@jotunheim.local'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('Password123!'),
+                'is_admin' => true,
+                'email_verified_at' => now(),
+            ]
+        );
 
-        // Create demo user with default password
-        $user = User::create([
-            'name' => 'Demo User',
-            'email' => 'user@jotunheim.local',
-            'password' => Hash::make('Password123!'),
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
+        // Create demo user with default password (skip if exists)
+        $user = User::firstOrCreate(
+            ['email' => 'user@jotunheim.local'],
+            [
+                'name' => 'Demo User',
+                'password' => Hash::make('Password123!'),
+                'is_admin' => false,
+                'email_verified_at' => now(),
+            ]
+        );
 
         // Create sample location
-        $location = Location::create([
-            'name' => 'Amsterdam',
-            'short_code' => 'AMS',
-            'description' => 'Primary datacenter in Amsterdam, Netherlands',
-        ]);
+        $location = Location::firstOrCreate(
+            ['short_code' => 'AMS'],
+            [
+                'name' => 'Amsterdam',
+                'description' => 'Primary datacenter in Amsterdam, Netherlands',
+            ]
+        );
 
         // Note: Nodes should be added via the UI with real Proxmox credentials
         // This is just a placeholder for testing without real Proxmox
