@@ -3,6 +3,7 @@
 namespace App\Services\Servers;
 
 use App\Models\Server;
+use App\Repositories\Proxmox\Server\ProxmoxConfigRepository;
 use App\Repositories\Proxmox\Server\ProxmoxServerRepository;
 use App\Services\Proxmox\ProxmoxApiClient;
 use App\Services\Proxmox\ProxmoxApiException;
@@ -22,14 +23,15 @@ class ServerResizeService
         try {
             Log::info("Starting resize for server {$server->uuid}");
 
-            $repo = (new ProxmoxServerRepository($this->client))->setServer($server);
+            $configRepo = (new ProxmoxConfigRepository($this->client))->setServer($server);
+            $serverRepo = (new ProxmoxServerRepository($this->client))->setServer($server);
 
             $changes = [];
 
             if (isset($options['cpu']) && $options['cpu'] > 0 && $options['cpu'] <= 32) {
                 $cores = $options['cpu'];
                 Log::info("Resizing CPU to {$cores} cores");
-                $repo->update(['cores' => $cores]);
+                $configRepo->setCpu($cores, 1);
                 $changes['cpu'] = $options['cpu'];
             }
 
@@ -37,17 +39,18 @@ class ServerResizeService
                 $memory = $options['memory'];
                 $memoryMB = $memory / 1048576;
                 Log::info("Resizing memory to {$memory} MB ({$memoryMB} MiB)");
-                $repo->update(['memory' => $memory]);
+                $configRepo->setMemory($memory);
                 $changes['memory'] = $options['memory'];
             }
 
             if (isset($options['disk']) && $options['disk'] >= 10 && $options['disk'] <= 10240) {
                 $disk = $options['disk'];
                 $diskGB = $disk / 1073741824;
-                Log::info("Resizing disk to {$disk} GB ({$diskGB} GiB)");
+                Log::info("Resizing disk to {$disk} bytes ({$diskGB} GiB)");
 
                 $newDiskSize = ceil($disk / 1073741824);
-                $repo->resizeDisk('scsi0', "{$newDiskSize}G");
+
+                $configRepo->resizeDisk('scsi0', $newDiskSize);
                 $changes['disk'] = $options['disk'];
             }
 
@@ -58,12 +61,6 @@ class ServerResizeService
             }
 
             $server->update($changes);
-
-            if (isset($changes['disk'])) {
-                $server->update(['status' => 'installing']);
-            } else {
-                $server->update($changes);
-            }
 
             Log::info("Resize completed for server {$server->uuid}", ['changes' => json_encode($changes)]);
 

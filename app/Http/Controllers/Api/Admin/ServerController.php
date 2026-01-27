@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Enums\Rebuild\RebuildStep;
 use App\Http\Controllers\Controller;
-use App\Jobs\Server\ResizeServerJob;
 use App\Models\Address;
 use App\Models\Node;
 use App\Models\Server;
@@ -918,30 +917,46 @@ class ServerController extends Controller
             'bandwidth_limit' => ['sometimes', 'nullable', 'integer', 'min:0'],
         ]);
 
-        $resizeOptions = [];
+        try {
+            $client = new ProxmoxApiClient($server->node);
+            $updateConfig = [];
 
-        if (isset($validated['cpu'])) {
-            $resizeOptions['cpu'] = $validated['cpu'];
-        }
-        if (isset($validated['memory'])) {
-            $resizeOptions['memory'] = $validated['memory'];
-        }
-        if (isset($validated['disk']) && $validated['disk'] > $server->disk) {
-            $resizeOptions['disk'] = $validated['disk'];
-        }
+            // Update Proxmox VM config
+            if (isset($validated['cpu'])) {
+                $updateConfig['cores'] = $validated['cpu'];
+            }
+            if (isset($validated['memory'])) {
+                $updateConfig['memory'] = (int) ($validated['memory'] / 1024 / 1024); // bytes to MB
+            }
 
-        if (isset($validated['bandwidth_limit'])) {
-            $server->update(['bandwidth_limit' => $validated['bandwidth_limit']]);
-        }
+            if (!empty($updateConfig)) {
+                $client->updateVMConfig((int) $server->vmid, $updateConfig);
+            }
 
-        if (!empty($resizeOptions)) {
-            ResizeServerJob::dispatch($server, $resizeOptions);
-        }
+            // Handle disk resize (Proxmox only allows increases)
+            if (isset($validated['disk']) && $validated['disk'] > $server->disk) {
+                $increaseGB = (int) ceil(($validated['disk'] - $server->disk) / 1024 / 1024 / 1024);
+                // Proxmox expects "+XG" format for relative increase
+                $client->put("/nodes/{$server->node->cluster}/qemu/{$server->vmid}/resize", [
+                    'disk' => 'scsi0',
+                    'size' => "+{$increaseGB}G"
+                ]);
+            }
 
-        return response()->json([
-            'message' => 'Resources update initiated',
-            'data' => $this->formatServer($server->fresh(), true),
-        ]);
+            // Update database
+            $server->update(array_intersect_key($validated, array_flip(['cpu', 'memory', 'disk', 'bandwidth_limit'])));
+
+            return response()->json([
+                'message' => 'Resources updated successfully',
+                'data' => $this->formatServer($server->fresh(), true),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update resources',
+                'error' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**

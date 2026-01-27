@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers\Api\Client;
 
-use App\Jobs\Server\ResizeServerJob;
 use App\Http\Controllers\Controller;
 use App\Models\Server;
+use App\Services\Servers\ServerResizeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ServerResizeController extends Controller
 {
+    public function __construct(
+        private ServerResizeService $resizeService
+    ) {}
+
     /**
      * Resize server resources (CPU, memory, disk).
      */
@@ -32,11 +36,10 @@ class ServerResizeController extends Controller
             'disk' => ['sometimes', 'integer', 'min:10', 'max:10240'],
         ]);
 
-        ResizeServerJob::dispatch($server, $validated);
+        $this->resizeService->resize($server, $validated);
 
         return response()->json([
-            'message' => 'Server resize initiated',
-            'status' => 'processing',
+            'message' => 'Server resized successfully',
         ]);
     }
 }
