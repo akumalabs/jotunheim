@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -e
+# Continue on error, but track failures
+ERRORS=0
+trap 'ERRORS=$((ERRORS+1))' ERR
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,6 +35,15 @@ if [[ "$OS" != "ubuntu" && "$OS" != "debian" ]]; then
 fi
 
 echo -e "${GREEN}Detected OS: $OS $VERSION${NC}"
+
+# Pre-flight check: Make sure we have enough disk space
+echo "Checking disk space..."
+DISK_AVAIL=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+if [ "$DISK_AVAIL" -lt 10 ]; then
+    echo -e "${RED}ERROR: Less than 10GB disk space available. Please free up space.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Disk space check passed: ${DISK_AVAIL}GB available${NC}"
 
 # Update system
 echo "Updating system packages..."
@@ -75,7 +86,23 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs
 echo "Installing MySQL..."
 debconf-set-selections <<< "mysql-server mysql-server/root_password password jotunheim"
 debconf-set-selections <<< "mysql-server mysql-server/root_password_again password jotunheim"
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --fix-missing mysql-server mariadb-server || true
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --fix-missing mariadb-server mariadb-client || true
+
+# Start MySQL service
+echo "Starting MySQL service..."
+systemctl start mariadb || systemctl start mysql
+systemctl enable mariadb || systemctl enable mysql
+
+# Wait for MySQL to be ready
+echo "Waiting for MySQL to be ready..."
+for i in {1..30}; do
+    if /usr/bin/mysql -uroot -pjotunheim -e "SELECT 1" >/dev/null 2>&1; then
+        echo "MySQL is ready!"
+        break
+    fi
+    echo "Waiting for MySQL... ($i/30)"
+    sleep 2
+done
 
 # Clone repository
 INSTALL_DIR="/var/www/jotunheim"
@@ -101,8 +128,13 @@ npm run build
 
 # Copy environment file
 if [ ! -f .env ]; then
-    echo "Creating .env file..."
-    cp .env.example .env
+    if [ -f .env.example ]; then
+        echo "Creating .env file..."
+        cp .env.example .env
+    else
+        echo -e "${RED}ERROR: .env.example not found!${NC}"
+        exit 1
+    fi
 
     # Generate app key
     php artisan key:generate
@@ -115,11 +147,28 @@ if [ ! -f .env ]; then
 
     # Create database
     echo "Creating database..."
-    mysql -uroot -pjotunheim -e "CREATE DATABASE IF NOT EXISTS jotunheim;"
+    if command -v mysql &> /dev/null; then
+        if mysql -uroot -pjotunheim -e "CREATE DATABASE IF NOT EXISTS jotunheim;" 2>/dev/null; then
+            echo "Database created successfully!"
+        else
+            echo "WARNING: Failed to create database automatically."
+            echo "Please run: mysql -uroot -pjotunheim -e 'CREATE DATABASE IF NOT EXISTS jotunheim;'"
+        fi
+    elif command -v mariadb &> /dev/null; then
+        if mariadb -uroot -pjotunheim -e "CREATE DATABASE IF NOT EXISTS jotunheim;" 2>/dev/null; then
+            echo "Database created successfully!"
+        else
+            echo "WARNING: Failed to create database automatically."
+            echo "Please run: mariadb -uroot -pjotunheim -e 'CREATE DATABASE IF NOT EXISTS jotunheim;'"
+        fi
+    else
+        echo "WARNING: Neither mysql nor mariadb command found."
+        echo "Please create the database manually."
+    fi
 
     # Run migrations
     echo "Running database migrations..."
-    php artisan migrate --seed --force
+    php artisan migrate --seed --force || echo "WARNING: Migrations failed, please check database connection in .env"
 fi
 
 # Set permissions
@@ -192,9 +241,52 @@ echo "Configuring PHP-FPM..."
 systemctl enable php8.2-fpm
 systemctl restart php8.2-fpm
 
+# Final verification
+echo ""
+echo -e "${YELLOW}Verifying installation...${NC}"
+echo ""
+
+# Check services
+SERVICES_OK=true
+for service in nginx php8.2-fpm redis-server; do
+    if systemctl is-active --quiet "$service"; then
+        echo -e "${GREEN}✓ $service is running${NC}"
+    else
+        echo -e "${RED}✗ $service is NOT running${NC}"
+        SERVICES_OK=false
+    fi
+done
+
+# Check MySQL/MariaDB
+if command -v mysql &> /dev/null || command -v mariadb &> /dev/null; then
+    echo -e "${GREEN}✓ MySQL/MariaDB is installed${NC}"
+else
+    echo -e "${RED}✗ MySQL/MariaDB is NOT installed or not in PATH${NC}"
+    SERVICES_OK=false
+fi
+
+# Check application
+if [ -f "$INSTALL_DIR/public/index.php" ]; then
+    echo -e "${GREEN}✓ Application files are present${NC}"
+else
+    echo -e "${RED}✗ Application files are missing${NC}"
+    SERVICES_OK=false
+fi
+
+if [ -f "$INSTALL_DIR/.env" ]; then
+    echo -e "${GREEN}✓ .env file exists${NC}"
+else
+    echo -e "${YELLOW}⚠ .env file not found${NC}"
+fi
+
 echo ""
 echo -e "${GREEN}=============================${NC}"
-echo -e "${GREEN}Installation Complete!${NC}"
+if [ "$ERRORS" -eq 0 ] && [ "$SERVICES_OK" = true ]; then
+    echo -e "${GREEN}Installation Complete!${NC}"
+else
+    echo -e "${YELLOW}Installation completed with warnings/errors${NC}"
+    echo -e "${RED}Errors encountered: $ERRORS${NC}"
+fi
 echo -e "${GREEN}=============================${NC}"
 echo ""
 echo "Your Jotunheim panel is now installed."
@@ -210,4 +302,8 @@ echo "  1. Update your .env file with your Proxmox credentials"
 echo "  2. Configure your domain in Nginx"
 echo "  3. Enable SSL with Let's Encrypt: certbot --nginx -d yourdomain.com"
 echo ""
+if [ "$ERRORS" -gt 0 ] || [ "$SERVICES_OK" = false ]; then
+    echo -e "${YELLOW}IMPORTANT: Please check the warnings above and fix any issues manually.${NC}"
+    echo ""
+fi
 echo "Thank you for installing Jotunheim!"
