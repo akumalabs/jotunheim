@@ -139,14 +139,17 @@ if [ ! -f .env ]; then
     # Generate app key
     php artisan key:generate
 
-    # Generate secure database password
-    DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+    # Generate secure database password (alphanumeric only to avoid sed issues)
+    DB_PASSWORD=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 24)
 
     # Configure .env with dedicated database user
     sed -i "s/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/" .env
     sed -i "s/DB_DATABASE=jotunheim/DB_DATABASE=jotunheim/" .env
     sed -i "s/DB_USERNAME=jotunheim/DB_USERNAME=jotunheim/" .env
     sed -i "s/DB_PASSWORD=/DB_PASSWORD=$DB_PASSWORD/" .env
+
+    # Display password for reference
+    echo -e "${YELLOW}Database password: $DB_PASSWORD${NC}"
 
     # Create database and user
     echo "Setting up database..."
