@@ -354,6 +354,7 @@ function pollServerStatus() {
                 }
 
             } catch (e) {
+                console.error('Error polling install progress:', e);
             }
 
         } catch (error) {

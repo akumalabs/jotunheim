@@ -691,6 +691,8 @@ const statusColor = (status: string) => {
             @success="() => {
                 queryClient.invalidateQueries({ queryKey: ['admin', 'servers', serverId] });
                 queryClient.invalidateQueries({ queryKey: ['server-usage', serverId] });
+                // Force page reload to clear provisioning banners and reset state
+                window.location.reload();
             }" />
         <AssignIPModal v-if="server" :open="showAssignIPModal" :server-id="serverId" @close="showAssignIPModal = false"
             @success="() => queryClient.invalidateQueries({ queryKey: ['admin', 'servers', serverId] })" />
