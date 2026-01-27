@@ -438,7 +438,8 @@ class ProxmoxApiClient
         $nodeName = $nodeName ?? $this->getProxmoxNodeName();
 
         // Proxmox returns list of {n: line_num, t: text}
-        return $this->get("/nodes/{$nodeName}/tasks/{$taskId}/log");
+        // Force fresh response with timestamp to prevent stalled progress logs
+        return $this->get("/nodes/{$nodeName}/tasks/{$taskId}/log?_t=" . time());
     }
 
     /**

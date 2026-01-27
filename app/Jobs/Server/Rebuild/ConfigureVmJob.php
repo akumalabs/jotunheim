@@ -65,6 +65,11 @@ class ConfigureVmJob implements ShouldQueue
 
             // Resize Disk (Defaulting to scsi0)
             if ($this->server->disk > 0) {
+                 // Wait for unlock after potential hardware update above
+                 if (!$serverRepo->waitUntilUnlocked(30, 1)) {
+                      throw new \Exception("VM locked timeout before disk resize.");
+                 }
+
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
                  $configRepo->resizeDisk('scsi0', $this->server->disk);
                  
