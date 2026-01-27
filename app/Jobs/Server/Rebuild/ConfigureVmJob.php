@@ -18,8 +18,8 @@ class ConfigureVmJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
-    public int $timeout = 300;
+    public int $tries = 5;
+    public int $timeout = 600;
 
     public function __construct(
         protected Server $server,
@@ -45,8 +45,9 @@ class ConfigureVmJob implements ShouldQueue
             $client = new ProxmoxApiClient($this->server->node);
             
             // Wait for VM to unlock (Clone might still be holding lock)
+            // Increased to 600s (300 attempts * 2s) as requested
             $serverRepo = (new \App\Repositories\Proxmox\Server\ProxmoxServerRepository($client))->setServer($this->server);
-            if (!$serverRepo->waitUntilUnlocked(60, 2)) {
+            if (!$serverRepo->waitUntilUnlocked(300, 2)) {
                  throw new \Exception("VM locked timeout before configuration start.");
             }
 
@@ -61,7 +62,6 @@ class ConfigureVmJob implements ShouldQueue
                 'cores' => $this->server->cpu,
                 'memory' => (int) ($this->server->memory / 1024 / 1024), // Bytes to MB
                 'onboot' => 1,
-                'onboot' => 1,
             ]);
             if ($this->server->disk > 0) {
                  // 1. Pre-check: Don't resize if already large enough
@@ -75,7 +75,7 @@ class ConfigureVmJob implements ShouldQueue
                          $unit = substr($sizeStr, -1);
                          $value = (float) substr($sizeStr, 0, -1);
                          if (is_numeric($unit)) {
-                             $value = (float) $sizeStr; // No unit, assuming bytes? Proxmox usually gives G/M/K
+                             $value = (float) $sizeStr; 
                              $unit = 'B'; 
                          }
                          
@@ -98,21 +98,22 @@ class ConfigureVmJob implements ShouldQueue
                  }
 
                  // Wait for transient file locks to clear after hardware update
-                 sleep(15);
+                 sleep(10);
                  
-                 // Wait for unlock after potential hardware update above
-                 if (!$serverRepo->waitUntilUnlocked(40, 2)) {
-                      throw new \Exception("VM locked timeout before disk resize.");
-                 }
-
                  Log::info("[Rebuild] Server {$this->server->id}: Resizing disk to {$this->server->disk} bytes");
                  
-                 // Retry loop for resize
+                 // Retry loop for resize with exponential backoff (10s, 20s, 40s, 60s, 60s)
                  $attempts = 0;
-                 $maxResizeAttempts = 3;
+                 $maxResizeAttempts = 5;
+                 $backoffs = [10, 20, 40, 60, 60];
                  
                  while ($attempts < $maxResizeAttempts) {
                      try {
+                         // Check unlock before each attempt
+                         if (!$serverRepo->waitUntilUnlocked(300, 2)) {
+                             throw new \Exception("VM locked timeout before resize attempt {$attempts}");
+                         }
+                         
                          $configRepo->resizeDisk('scsi0', $this->server->disk);
                          break; // Success
                      } catch (\Exception $e) {
@@ -130,15 +131,15 @@ class ConfigureVmJob implements ShouldQueue
                              }
                              Log::warning("[Rebuild] Resize failed but proceeding: " . $msg);
                          } else {
-                             Log::warning("[Rebuild] Resize attempt {$attempts} failed (Lock/Timeout), retrying in 15s...");
-                             sleep(15);
+                             $sleepTime = $backoffs[$attempts - 1] ?? 60;
+                             Log::warning("[Rebuild] Resize attempt {$attempts} failed (Lock/Timeout), retrying in {$sleepTime}s...");
+                             sleep($sleepTime);
                          }
                      }
                  }
                  
-                 // Wait for Unlock after Resize (Fix Race Condition)
-                 $serverRepo = (new \App\Repositories\Proxmox\Server\ProxmoxServerRepository($client))->setServer($this->server);
-                 if (!$serverRepo->waitUntilUnlocked(120, 2)) {
+                 // Post-resize unlock wait: increased to 300s
+                 if (!$serverRepo->waitUntilUnlocked(150, 2)) {
                       throw new \Exception("VM locked timeout after resize.");
                  }
             }

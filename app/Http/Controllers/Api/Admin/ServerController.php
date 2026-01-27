@@ -501,7 +501,8 @@ class ServerController extends Controller
                 $client = new ProxmoxApiClient($server->node);
                 $status = $client->getTaskStatus($server->installation_task);
 
-                Log::info("PVE Task Status: " . json_encode($status));
+                // Log useful tracking info
+                Log::debug("InstallProgress: Checking task {$server->installation_task}, status: {$status['status']}");
 
                 if ($status['status'] === 'stopped') {
                     if (($status['exitstatus'] ?? 'OK') === 'OK') {
@@ -524,30 +525,37 @@ class ServerController extends Controller
                     
                     $cloneProgress = $progressData['progress_percent'] ?? 0;
                     
-                    // Fallback to task status progress if log parsing failed
+                    // Fallback to task status progress if log parsing failed or returned 0
                     if ($cloneProgress <= 0 && isset($status['progress'])) {
-                         $cloneProgress = $status['progress'] * 100;
+                         $statusProgress = $status['progress'] * 100;
+                         Log::debug("InstallProgress: Log parsing yielded 0%, falling back to status progress: {$statusProgress}%");
+                         $cloneProgress = $statusProgress;
                     }
 
                     $response['progress'] = $cloneProgress;
                     $response['cloneProgress'] = $cloneProgress;
+                    
+                    Log::debug("InstallProgress: Final progress: {$cloneProgress}%");
                 }
             } elseif ($step) {
                 // For all other steps, we rely on the UI showing a spinner/processing state
                 // hasProgress is false by default in RebuildStep enum for non-INSTALLING_OS steps
                 $response['progress'] = 0; 
-
+                
                 if ($step === RebuildStep::CONFIGURING_RESOURCES) {
                     $response['subOperations'] = $step->subOperations();
                 }
             } else if ($server->installation_task) {
+                // ... same as before
                 $client = new ProxmoxApiClient($server->node);
                 $status = $client->getTaskStatus($server->installation_task);
                 if ($status['status'] === 'running') {
                     $response['step'] = 'installing_os';
                     $response['stepLabel'] = RebuildStep::INSTALLING_OS->label();
-                    // ... other fields set by frontend defaults or handled there
-                    Cache::put("server_rebuild_step_{$server->id}", 'installing_os', 1200);
+                    // Don't thrash cache if already set
+                    if (Cache::get("server_rebuild_step_{$server->id}") !== 'installing_os') {
+                        Cache::put("server_rebuild_step_{$server->id}", 'installing_os', 1200);
+                    }
                 }
             }
 

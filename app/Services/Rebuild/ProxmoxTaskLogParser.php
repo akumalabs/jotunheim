@@ -9,13 +9,17 @@ class ProxmoxTaskLogParser
 {
     public function parseCloneProgress(array $logs): ?array
     {
+        $logCount = count($logs);
+        Log::debug("ProxmoxTaskLogParser: Processing {$logCount} log entries.");
+        
         $logs = array_reverse($logs);
         
-        foreach ($logs as $line) {
+        foreach ($logs as $index => $line) {
             $lineData = $line['t'] ?? '';
             
             // Explicit check for completion
             if (str_contains($lineData, '100% complete') || str_contains($lineData, 'clone finished')) {
+                 Log::debug("ProxmoxTaskLogParser: Found completion marker at line {$index}");
                  return [
                     'current_bytes' => 0,
                     'total_bytes' => 0,
@@ -26,10 +30,11 @@ class ProxmoxTaskLogParser
             }
             
             if (preg_match('/transferred\s+([\d.]+)\s+([A-Za-z]+)\s+of\s+([\d.]+)\s+([A-Za-z]+)(?:\s*\(([\d.]+)%\))?/i', $lineData, $matches)) {
-                Log::debug("ProxmoxTaskLogParser matched: " . json_encode($matches));
                 $current = $this->convertToBytes($matches[1], $matches[2]);
                 $total = $this->convertToBytes($matches[3], $matches[4]);
                 $percentage = min(($current / $total) * 100, 99.9);
+                
+                Log::debug("ProxmoxTaskLogParser: Matched progress at line {$index}. Calculated: {$percentage}% ({$matches[0]})");
                 
                 return [
                     'current_bytes' => $current,
@@ -42,8 +47,8 @@ class ProxmoxTaskLogParser
 
             // Fallback for: "transferring disk data... 35%"
             if (preg_match('/transferring\s+disk\s+data\.{3}\s+(\d+)%/i', $lineData, $matches)) {
-                 Log::debug("ProxmoxTaskLogParser simple matched: " . json_encode($matches));
                  $percentage = (float) $matches[1];
+                 Log::debug("ProxmoxTaskLogParser: Matched simple progress at line {$index}. Value: {$percentage}%");
                  return [
                     'current_bytes' => 0,
                     'total_bytes' => 0,
@@ -54,6 +59,7 @@ class ProxmoxTaskLogParser
             }
         }
         
+        Log::debug("ProxmoxTaskLogParser: No progress pattern found in logs.");
         return null;
     }
 
